@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "title": "Família Ferreira — fixture sintética",
+    "description": "Dados fictícios para testar segundos casamentos, meios-irmãos, famílias de cônjuges, união sem filhos, união monoparental e muitos filhos. Não representa pessoas reais.",
+    "rootPersonId": "p-augusto",
+    "locale": "pt-BR",
+    "updatedAt": "2026-11-17T00:00:00.000Z"
+  },
+  "persons": {
+    "p-augusto": {
+      "id": "p-augusto",
+      "name": "Augusto Ferreira",
+      "sex": "M",
+      "birth": { "year": 1938 },
+      "death": { "year": 2014 },
+      "birthPlace": "Recife, PE",
+      "bio": "Patriarca fictício da fixture; existe para ancorar a raiz e a primeira geração."
+    },
+    "p-lucia": {
+      "id": "p-lucia",
+      "name": "Lúcia Andrade",
+      "sex": "F",
+      "birth": { "year": 1942 },
+      "birthPlace": "Olinda, PE"
+    },
+    "p-beatriz": {
+      "id": "p-beatriz",
+      "name": "Beatriz Ferreira",
+      "sex": "F",
+      "birth": { "year": 1965 },
+      "birthPlace": "Recife, PE",
+      "bio": "Tem cinco filhos na mesma união, para testar o layout com muitos filhos."
+    },
+    "p-roberto": {
+      "id": "p-roberto",
+      "name": "Roberto Mendes",
+      "sex": "M",
+      "birth": { "year": 1963 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-carlos": {
+      "id": "p-carlos",
+      "name": "Carlos Ferreira",
+      "sex": "M",
+      "birth": { "year": 1968 },
+      "birthPlace": "Recife, PE",
+      "bio": "Tem dois casamentos: Renata (encerrado) e Marina (ativo)."
+    },
+    "p-renata": {
+      "id": "p-renata",
+      "name": "Renata Lopes",
+      "sex": "F",
+      "birth": { "year": 1970 },
+      "birthPlace": "Salvador, BA"
+    },
+    "p-marina": {
+      "id": "p-marina",
+      "name": "Marina Souza",
+      "sex": "F",
+      "birth": { "year": 1975 },
+      "birthPlace": "Maceió, AL",
+      "bio": "Filha de Joana e Paulo; tem um irmão, Rafael. Serve para testar a família do cônjuge."
+    },
+    "p-ana": {
+      "id": "p-ana",
+      "name": "Ana Ferreira",
+      "sex": "F",
+      "birth": { "year": 1988 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-bruno": {
+      "id": "p-bruno",
+      "name": "Bruno Ferreira",
+      "sex": "M",
+      "birth": { "year": 1990 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-caio": {
+      "id": "p-caio",
+      "name": "Caio Ferreira",
+      "sex": "M",
+      "birth": { "year": 1992 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-dora": {
+      "id": "p-dora",
+      "name": "Dora Ferreira",
+      "sex": "F",
+      "birth": { "year": 1995 },
+      "birthPlace": "Recife, PE",
+      "bio": "Mãe solo; a união que resultou em Otávio tem apenas um parceiro conhecido."
+    },
+    "p-enzo": {
+      "id": "p-enzo",
+      "name": "Enzo Ferreira",
+      "sex": "M",
+      "birth": { "year": 1999 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-gabriel": {
+      "id": "p-gabriel",
+      "name": "Gabriel Ferreira",
+      "sex": "M",
+      "birth": { "year": 1992 },
+      "birthPlace": "Recife, PE",
+      "bio": "Filho do primeiro casamento de Carlos; meio-irmão de Helena e Igor."
+    },
+    "p-sofia": {
+      "id": "p-sofia",
+      "name": "Sofia Barros",
+      "sex": "F",
+      "birth": { "year": 1994 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-helena": {
+      "id": "p-helena",
+      "name": "Helena Ferreira",
+      "sex": "F",
+      "birth": { "year": 2000 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-igor": {
+      "id": "p-igor",
+      "name": "Igor Ferreira",
+      "sex": "M",
+      "birth": { "year": 2003 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-tiago": {
+      "id": "p-tiago",
+      "name": "Tiago Nunes",
+      "sex": "M",
+      "birth": { "year": 1999 },
+      "birthPlace": "Campinas, SP"
+    },
+    "p-livia": {
+      "id": "p-livia",
+      "name": "Lívia Nunes",
+      "sex": "F",
+      "birth": { "year": 2022 },
+      "birthPlace": "Campinas, SP"
+    },
+    "p-otavio": {
+      "id": "p-otavio",
+      "name": "Otávio Ferreira",
+      "sex": "M",
+      "birth": { "year": 2020 },
+      "birthPlace": "Recife, PE"
+    },
+    "p-joana": {
+      "id": "p-joana",
+      "name": "Joana Souza",
+      "sex": "F",
+      "birth": { "year": 1948 },
+      "birthPlace": "Maceió, AL"
+    },
+    "p-paulo": {
+      "id": "p-paulo",
+      "name": "Paulo Souza",
+      "sex": "M",
+      "birth": { "year": 1946 },
+      "birthPlace": "Maceió, AL"
+    },
+    "p-rafael": {
+      "id": "p-rafael",
+      "name": "Rafael Souza",
+      "sex": "M",
+      "birth": { "year": 1978 },
+      "birthPlace": "Maceió, AL"
+    }
+  },
+  "unions": {
+    "u-augusto-lucia": {
+      "id": "u-augusto-lucia",
+      "partners": ["p-augusto", "p-lucia"],
+      "children": ["p-beatriz", "p-carlos"],
+      "status": "married",
+      "start": { "year": 1962 },
+      "place": "Recife, PE"
+    },
+    "u-beatriz-roberto": {
+      "id": "u-beatriz-roberto",
+      "partners": ["p-beatriz", "p-roberto"],
+      "children": ["p-ana", "p-bruno", "p-caio", "p-dora", "p-enzo"],
+      "status": "married",
+      "start": { "year": 1986 },
+      "place": "Recife, PE"
+    },
+    "u-carlos-renata": {
+      "id": "u-carlos-renata",
+      "partners": ["p-carlos", "p-renata"],
+      "children": ["p-gabriel"],
+      "status": "divorced",
+      "start": { "year": 1990 },
+      "end": { "year": 1996 }
+    },
+    "u-carlos-marina": {
+      "id": "u-carlos-marina",
+      "partners": ["p-carlos", "p-marina"],
+      "children": ["p-helena", "p-igor"],
+      "status": "married",
+      "start": { "year": 1998 },
+      "place": "Recife, PE"
+    },
+    "u-gabriel-sofia": {
+      "id": "u-gabriel-sofia",
+      "partners": ["p-gabriel", "p-sofia"],
+      "children": [],
+      "status": "married",
+      "start": { "year": 2018 },
+      "place": "Recife, PE"
+    },
+    "u-helena-tiago": {
+      "id": "u-helena-tiago",
+      "partners": ["p-helena", "p-tiago"],
+      "children": ["p-livia"],
+      "status": "married",
+      "start": { "year": 2020 },
+      "place": "Campinas, SP"
+    },
+    "u-dora-single": {
+      "id": "u-dora-single",
+      "partners": ["p-dora"],
+      "children": ["p-otavio"],
+      "status": "unknown",
+      "note": "Outro genitor não informado."
+    },
+    "u-joana-paulo": {
+      "id": "u-joana-paulo",
+      "partners": ["p-joana", "p-paulo"],
+      "children": ["p-marina", "p-rafael"],
+      "status": "married",
+      "start": { "year": 1972 },
+      "place": "Maceió, AL"
+    }
+  }
+}
