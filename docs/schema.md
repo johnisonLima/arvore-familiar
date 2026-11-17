@@ -164,9 +164,9 @@ Consultas esperadas:
 - `parentsOf(personId)` → parceiros da(s) união(ões) parental(is).
 - `childrenOf(personId)` → filhos de todas as uniões em que é parceira.
 - `spousesOf(personId)` → parceiros das uniões, excluindo a própria pessoa.
-- `siblingsOf(personId)` → filhos da mesma união; classificar full/half pela interseção de pais.
-- `descendantsOf(personId)` / `ancestorsOf(personId)` → travessia com `visited`.
-- `pathBetween(a, b)` → BFS no grafo bipartido pessoa↔união.
+- `siblingsOf(personId)` → filhos de qualquer união dos genitores, excluindo a própria pessoa; classificar `full`/`half` pela interseção de pais. Isso inclui meios-irmãos de outra união do mesmo genitor.
+- `descendantsOf(personId)` / `ancestorsOf(personId)` → travessia BFS com `visited` e profundidade mínima.
+- `findRelationshipPath(a, b)` → BFS nas adjacências derivadas (`spouse`, `parent`, `child`, `sibling`), com o `unionId` de cada passo; o caminho é uma sequência de pessoas.
 
 ## Ciclo de vida e versionamento
 
@@ -177,9 +177,21 @@ Consultas esperadas:
 - Campos novos devem ser opcionais ou acompanhados de migração e bump de versão.
 - Campos derivados, de UI ou de banco (`_rev`, `_id` externo, cor, geração, idade) ficam fora do domínio.
 
+## Estado da implementação (Fase 1)
+
+| Módulo | Arquivo | Cobertura |
+| --- | --- | --- |
+| Tipos | `src/domain/types.ts` | Schema v1 |
+| Validação | `src/domain/validate.ts` | Referências, IDs, ciclos, união parental única, datas, avisos |
+| Grafo | `src/domain/graph.ts` | Índices, pais, filhos, cônjuges, irmãos full/half, descendentes, ancestrais |
+| Relacionamento | `src/domain/relationship.ts` | BFS, passos e rótulos comuns + fallback |
+| Migração | `src/data/migrate-v0.ts` | Seed legado → 25 pessoas, 8 uniões, 16 vínculos |
+| Dados gerados | `src/data/family.json` | Documento v1 versionado |
+| Testes | `src/**/*.test.ts` | 58 testes de domínio, grafo, relacionamento e migração |
+
 ## Migração do seed original (v0 → v1)
 
-O protótipo legado contém 17 cards e 8 cônjuges como texto. A migração deve produzir:
+O protótipo legado contém 17 cards e 8 cônjuges como texto. A migração produz:
 
 | Item | Quantidade |
 | --- | --- |
@@ -190,8 +202,8 @@ O protótipo legado contém 17 cards e 8 cônjuges como texto. A migração deve
 
 Mapeamento:
 
-1. Cada objeto `P(...)` vira uma pessoa; guardar um `WeakMap` de nó para id.
-2. Cada `sp` vira pessoa. Se o nome normalizado coincidir com uma pessoa já criada, reutilizar; caso contrário, criar e registrar para revisão.
+1. Cada objeto `P(...)` vira uma pessoa; guardar um `Map` de nó para id.
+2. Cada `sp` vira pessoa. Se o nome normalizado coincidir com exatamente um card, reutilizar esse card; se não houver card ou houver ambiguidade, criar uma pessoa separada. Homônimos que não são cards não são fundidos automaticamente.
 3. Para cada card com `k` ou `sp`, criar uma união com `[pessoa, cônjuge?]` e os filhos do card.
 4. Fernanda + Tiago geram uma união sem filhos.
 5. `y` vira `birth`/`death` quando o padrão for reconhecível (`1928 – 2009`, `n. 1953`); caso contrário, `raw`.
@@ -206,6 +218,12 @@ Critérios de teste da migração:
 - `descendantsOf(antônio)` tem 16 pessoas.
 - `unionsOfPerson(carlos)` tem 1 união no seed.
 - A união de Fernanda + Tiago existe e tem zero filhos.
+
+O resultado está em `src/data/family.json` e é reproduzível com:
+
+```bash
+npm run generate:data
+```
 
 ## Fixture sintética
 

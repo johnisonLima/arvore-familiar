@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "title": "Família Albuquerque",
+    "description": "Dados migrados do seed embutido no protótipo original (linhagem única).",
+    "rootPersonId": "p-antonio-albuquerque",
+    "locale": "pt-BR",
+    "updatedAt": "2026-11-17T16:50:41.853Z"
+  },
+  "persons": {
+    "p-antonio-albuquerque": {
+      "id": "p-antonio-albuquerque",
+      "name": "Antônio Albuquerque",
+      "birthPlace": "Ilhéus, BA",
+      "bio": "Mestre de obras e contador de histórias. Fundou a mercearia que sustentou três gerações.",
+      "birth": {
+        "year": 1928
+      },
+      "death": {
+        "year": 2009
+      }
+    },
+    "p-beatriz-albuquerque": {
+      "id": "p-beatriz-albuquerque",
+      "name": "Beatriz Albuquerque",
+      "birthPlace": "Salvador, BA",
+      "bio": "Professora de geografia; transformou a casa de praia no ponto de encontro dos primos.",
+      "birth": {
+        "year": 1953
+      }
+    },
+    "p-eduardo-mendes": {
+      "id": "p-eduardo-mendes",
+      "name": "Eduardo Mendes",
+      "birthPlace": "Barreiras, BA",
+      "bio": "Engenheiro agrônomo apaixonado por café de altitude.",
+      "birth": {
+        "year": 1980
+      }
+    },
+    "p-maria-mendes": {
+      "id": "p-maria-mendes",
+      "name": "Maria Mendes",
+      "birthPlace": "Barreiras, BA",
+      "bio": "Aprendiz de violão e colecionadora de discos antigos.",
+      "birth": {
+        "year": 2009
+      }
+    },
+    "p-nina-mendes": {
+      "id": "p-nina-mendes",
+      "name": "Nina Mendes",
+      "birthPlace": "Barreiras, BA",
+      "bio": "Campeã de xadrez da escola e futura astronauta, segundo ela.",
+      "birth": {
+        "year": 2013
+      }
+    },
+    "p-fernanda-mendes": {
+      "id": "p-fernanda-mendes",
+      "name": "Fernanda Mendes",
+      "birthPlace": "Salvador, BA",
+      "bio": "Arquiteta que restaura casarões históricos.",
+      "birth": {
+        "year": 1984
+      }
+    },
+    "p-carlos-albuquerque": {
+      "id": "p-carlos-albuquerque",
+      "name": "Carlos Albuquerque",
+      "birthPlace": "Vitória da Conquista, BA",
+      "bio": "Médico de família; atende na cidade há mais de trinta anos.",
+      "birth": {
+        "year": 1956
+      }
+    },
+    "p-gabriel-albuquerque": {
+      "id": "p-gabriel-albuquerque",
+      "name": "Gabriel Albuquerque",
+      "birthPlace": "Campinas, SP",
+      "bio": "Desenvolvedor de software e cozinheiro de domingo.",
+      "birth": {
+        "year": 1983
+      }
+    },
+    "p-otavio-albuquerque": {
+      "id": "p-otavio-albuquerque",
+      "name": "Otávio Albuquerque",
+      "birthPlace": "Campinas, SP",
+      "bio": "Descobriu os dinossauros aos três anos e nunca mais parou.",
+      "birth": {
+        "year": 2015
+      }
+    },
+    "p-helena-fontes": {
+      "id": "p-helena-fontes",
+      "name": "Helena Fontes",
+      "birthPlace": "Rio de Janeiro, RJ",
+      "bio": "Chef de cozinha; guarda as receitas da bisavó.",
+      "birth": {
+        "year": 1986
+      }
+    },
+    "p-igor-albuquerque": {
+      "id": "p-igor-albuquerque",
+      "name": "Igor Albuquerque",
+      "birthPlace": "Belo Horizonte, MG",
+      "bio": "Músico e produtor, toca em três bandas.",
+      "birth": {
+        "year": 1990
+      }
+    },
+    "p-dora-albuquerque": {
+      "id": "p-dora-albuquerque",
+      "name": "Dora Albuquerque",
+      "birthPlace": "Recife, PE",
+      "bio": "Advogada e primeira da família a se formar na universidade.",
+      "birth": {
+        "year": 1960
+      }
+    },
+    "p-julia-teixeira": {
+      "id": "p-julia-teixeira",
+      "name": "Júlia Teixeira",
+      "birthPlace": "Fernando de Noronha, PE",
+      "bio": "Bióloga marinha que estuda recifes de coral.",
+      "birth": {
+        "year": 1988
+      }
+    },
+    "p-pedro-costa": {
+      "id": "p-pedro-costa",
+      "name": "Pedro Costa",
+      "birthPlace": "Fernando de Noronha, PE",
+      "bio": "Goleiro do time da escola.",
+      "birth": {
+        "year": 2016
+      }
+    },
+    "p-rafael-costa": {
+      "id": "p-rafael-costa",
+      "name": "Rafael Costa",
+      "birthPlace": "Fernando de Noronha, PE",
+      "bio": "Desenha mapas de ilhas imaginárias.",
+      "birth": {
+        "year": 2018
+      }
+    },
+    "p-sofia-costa": {
+      "id": "p-sofia-costa",
+      "name": "Sofia Costa",
+      "birthPlace": "Fernando de Noronha, PE",
+      "bio": "A caçula, já nada melhor que todos.",
+      "birth": {
+        "year": 2021
+      }
+    },
+    "p-lucas-teixeira": {
+      "id": "p-lucas-teixeira",
+      "name": "Lucas Teixeira",
+      "birthPlace": "Lisboa, Portugal",
+      "bio": "Fotógrafo de viagens; nunca está em casa.",
+      "birth": {
+        "year": 1993
+      }
+    },
+    "p-helena-lima": {
+      "id": "p-helena-lima",
+      "name": "Helena Lima"
+    },
+    "p-roberto-mendes": {
+      "id": "p-roberto-mendes",
+      "name": "Roberto Mendes"
+    },
+    "p-camila-reis": {
+      "id": "p-camila-reis",
+      "name": "Camila Reis"
+    },
+    "p-tiago-prado": {
+      "id": "p-tiago-prado",
+      "name": "Tiago Prado"
+    },
+    "p-lucia-fontes": {
+      "id": "p-lucia-fontes",
+      "name": "Lúcia Fontes"
+    },
+    "p-ana-beatriz": {
+      "id": "p-ana-beatriz",
+      "name": "Ana Beatriz"
+    },
+    "p-marcio-teixeira": {
+      "id": "p-marcio-teixeira",
+      "name": "Márcio Teixeira"
+    },
+    "p-daniel-costa": {
+      "id": "p-daniel-costa",
+      "name": "Daniel Costa"
+    }
+  },
+  "unions": {
+    "u-antonio-albuquerque-helena-lima": {
+      "id": "u-antonio-albuquerque-helena-lima",
+      "partners": [
+        "p-antonio-albuquerque",
+        "p-helena-lima"
+      ],
+      "children": [
+        "p-beatriz-albuquerque",
+        "p-carlos-albuquerque",
+        "p-dora-albuquerque"
+      ]
+    },
+    "u-beatriz-albuquerque-roberto-mendes": {
+      "id": "u-beatriz-albuquerque-roberto-mendes",
+      "partners": [
+        "p-beatriz-albuquerque",
+        "p-roberto-mendes"
+      ],
+      "children": [
+        "p-eduardo-mendes",
+        "p-fernanda-mendes"
+      ]
+    },
+    "u-eduardo-mendes-camila-reis": {
+      "id": "u-eduardo-mendes-camila-reis",
+      "partners": [
+        "p-eduardo-mendes",
+        "p-camila-reis"
+      ],
+      "children": [
+        "p-maria-mendes",
+        "p-nina-mendes"
+      ]
+    },
+    "u-fernanda-mendes-tiago-prado": {
+      "id": "u-fernanda-mendes-tiago-prado",
+      "partners": [
+        "p-fernanda-mendes",
+        "p-tiago-prado"
+      ],
+      "children": []
+    },
+    "u-carlos-albuquerque-lucia-fontes": {
+      "id": "u-carlos-albuquerque-lucia-fontes",
+      "partners": [
+        "p-carlos-albuquerque",
+        "p-lucia-fontes"
+      ],
+      "children": [
+        "p-gabriel-albuquerque",
+        "p-helena-fontes",
+        "p-igor-albuquerque"
+      ]
+    },
+    "u-gabriel-albuquerque-ana-beatriz": {
+      "id": "u-gabriel-albuquerque-ana-beatriz",
+      "partners": [
+        "p-gabriel-albuquerque",
+        "p-ana-beatriz"
+      ],
+      "children": [
+        "p-otavio-albuquerque"
+      ]
+    },
+    "u-dora-albuquerque-marcio-teixeira": {
+      "id": "u-dora-albuquerque-marcio-teixeira",
+      "partners": [
+        "p-dora-albuquerque",
+        "p-marcio-teixeira"
+      ],
+      "children": [
+        "p-julia-teixeira",
+        "p-lucas-teixeira"
+      ]
+    },
+    "u-julia-teixeira-daniel-costa": {
+      "id": "u-julia-teixeira-daniel-costa",
+      "partners": [
+        "p-julia-teixeira",
+        "p-daniel-costa"
+      ],
+      "children": [
+        "p-pedro-costa",
+        "p-rafael-costa",
+        "p-sofia-costa"
+      ]
+    }
+  }
+}

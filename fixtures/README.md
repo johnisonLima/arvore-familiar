@@ -26,10 +26,10 @@
 
 ## Validação
 
+A fixture é validada pelo domínio em `src/domain/validate.test.ts` e usada pelos testes de grafo e relacionamento:
+
 ```bash
-node scripts/check-fixture.mjs
+npm test
 ```
 
-O script usa apenas Node.js, sem dependências. Ele verifica referências, unicidade, ciclos, união parental única, datas, idades e os cenários acima.
-
-Na Fase 1, o validador de domínio substituirá esta checagem temporária; a fixture continuará sendo a mesma.
+Os testes conferem referências, unicidade, ciclos, união parental única, datas, idades e os cenários acima.

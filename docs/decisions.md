@@ -115,3 +115,27 @@ Carlos Albuquerque
 - O arquivo original permanece na raiz e será mantido até a Fase 2.
 - A Fase 1 pode rodar em paralelo, sem tocar no legado.
 - A remoção ou movimentação para `legacy/` será decidida quando o novo app estiver equivalente.
+
+## ADR-009 — Domínio puro e validação sem dependência
+
+**Decisão:** manter tipos, validação, grafo e relacionamento em módulos puros, sem DOM e sem biblioteca de schema. A validação é escrita à mão e testada com Vitest.
+
+**Motivo:** o domínio precisa rodar em Node, no build e no navegador, com mensagens de erro controladas e sem adicionar uma dependência só para validar um JSON pequeno.
+
+**Consequências:**
+
+- Erros têm `code`, `path` e `severity` (`error`/`warning`), permitindo UI e importação amigáveis.
+- A validação não muta a entrada.
+- Se o schema crescer muito, Zod ou similar pode substituir a implementação sem mudar a API pública.
+
+## ADR-010 — BFS de relacionamento por pessoa
+
+**Decisão:** o BFS de parentesco percorre pessoas usando adjacências derivadas das uniões: cônjuge, pai, filho e irmão. Cada passo carrega o `unionId` que o originou.
+
+**Motivo:** o caminho em pessoas é o que a UI precisa exibir; a união permanece como contexto e fonte da relação. O BFS é curto, testável e não exige biblioteca de grafos. Os rótulos comuns são resolvidos por consultas diretas (pai, filho, irmão, avô, tio, primo, afinidade) e o fallback informa a distância.
+
+**Consequências:**
+
+- Meios-irmãos são alcançados via pai/mãe; irmãos completos podem usar a aresta direta de irmão.
+- O caminho não é necessariamente a rota genealógica mais “canônica” quando há múltiplos caminhos, mas é o menor em passos.
+- Um grafo completo/visual pode reutilizar as mesmas consultas sem alterar o domínio.
