@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Árvore Familiar — Zoom Infinito</title>
+<style>
+:root{--bg:#f4f0e8;--ink:#2b2420;--mut:#7b6f66;--card:rgba(255,252,246,.86);--dot:rgba(43,36,32,.3);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0f1f;--ink:#f0edfa;--mut:#a3a0be;--card:rgba(30,32,62,.82);--dot:rgba(200,200,255,.34)}}
+:root[data-theme="dark"]{--bg:#0e0f1f;--ink:#f0edfa;--mut:#a3a0be;--card:rgba(30,32,62,.82);--dot:rgba(200,200,255,.34)}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-user-select:none;user-select:none}
+#stage{position:fixed;inset:0;overflow:hidden;cursor:grab;touch-action:none;background:var(--bg)}
+#stage.drag{cursor:grabbing}
+.g{position:absolute;inset:0;background-image:radial-gradient(circle,var(--dot) 1.6px,transparent 2px);pointer-events:none}
+#vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 50%,var(--bg) 105%);opacity:.85}
+#world{position:absolute;left:0;top:0;transform-origin:0 0}
+.f{position:absolute;width:1200px;height:720px;transform-origin:0 0}
+.shell{position:absolute;inset:0;border-radius:44px;background:var(--card);border:3px solid hsl(var(--h) 55% 55%/.75);box-shadow:0 24px 70px hsl(var(--h) 60% 45%/.22)}
+.exp,.cmp,.kids{position:absolute;inset:0}
+.cmp{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
+.av{border-radius:50%;display:grid;place-items:center;color:#fff;font-family:Georgia,"Times New Roman",serif;flex:none;background:linear-gradient(145deg,hsl(var(--h) 65% 62%),hsl(calc(var(--h) + 40) 60% 38%))}
+.cmp .av{width:300px;height:300px;font-size:120px}
+.cmp b{font:600 82px/1.1 Georgia,"Times New Roman",serif;padding:0 40px}
+.cmp span{font-size:50px;color:var(--mut)}
+.head{position:absolute;left:0;right:0;top:0;height:250px;display:flex;align-items:center;gap:36px;padding:0 56px}
+.head .av{width:170px;height:170px;font-size:68px}
+.head h2{margin:0;font:600 56px/1.1 Georgia,"Times New Roman",serif}
+.head .y{font-size:30px;color:var(--mut);margin:6px 0 8px}
+.head p{margin:0;font-size:26px;line-height:1.3}
+.chip{display:inline-block;margin:10px 10px 0 0;padding:4px 16px;border-radius:99px;font-size:23px;background:hsl(var(--h) 60% 55%/.2)}
+.facts{position:absolute;left:56px;right:56px;top:330px;display:grid;grid-template-columns:repeat(3,1fr);gap:30px}
+.facts div{padding:30px;border-radius:30px;background:hsl(var(--h) 60% 55%/.13)}
+.facts small{display:block;font-size:24px;color:var(--mut);margin-bottom:8px}
+.facts b{font:600 40px/1.15 Georgia,"Times New Roman",serif}
+.ui{position:fixed;z-index:5}
+#hud{left:max(14px,env(safe-area-inset-left,0px));top:max(14px,env(safe-area-inset-top,0px));padding:10px 16px;border-radius:16px;background:var(--card);border:1px solid var(--dot);font-size:14px;max-width:min(70vw,420px);pointer-events:none}
+#hud small{display:block;font-size:11px;letter-spacing:.12em;color:var(--mut);text-transform:uppercase;margin-bottom:3px}
+#hud b{font:600 17px Georgia,serif}
+#ctl{right:max(14px,env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px}
+#ctl button{width:46px;height:46px;border-radius:50%;border:1px solid var(--dot);background:var(--card);color:var(--ink);font-size:22px;cursor:pointer}
+#hint{left:50%;transform:translateX(-50%);bottom:max(18px,env(safe-area-inset-bottom,0px));padding:10px 18px;border-radius:99px;background:var(--card);border:1px solid var(--dot);font-size:13px;color:var(--mut);text-align:center;width:max-content;max-width:90vw;pointer-events:none;transition:opacity .8s}
+#hint.off{opacity:0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="g" id="g1"></div><div class="g" id="g2"></div>
+  <div id="world"></div>
+  <div id="vig"></div>
+</div>
+<div class="ui" id="hud"></div>
+<div class="ui" id="ctl"><button id="zi" aria-label="Aproximar">+</button><button id="zo" aria-label="Afastar">−</button><button id="hm" aria-label="Início">⌂</button></div>
+<div class="ui" id="hint">Role para dar zoom · arraste para mover · toque num cartão para voar até ele</div>
+<script>
+(()=>{
+const FW=1200,FH=720,K=.25;
+const P=(n,y,b,sp,pl,k,h)=>({n,y,b,sp:sp||"",pl,k:k||[],h});
+const DATA=P("Antônio Albuquerque","1928 – 2009","Mestre de obras e contador de histórias. Fundou a mercearia que sustentou três gerações.","Helena Lima","Ilhéus, BA",[
+ P("Beatriz Albuquerque","n. 1953","Professora de geografia; transformou a casa de praia no ponto de encontro dos primos.","Roberto Mendes","Salvador, BA",[
+  P("Eduardo Mendes","n. 1980","Engenheiro agrônomo apaixonado por café de altitude.","Camila Reis","Barreiras, BA",[
+   P("Maria Mendes","n. 2009","Aprendiz de violão e colecionadora de discos antigos.","","Barreiras, BA"),
+   P("Nina Mendes","n. 2013","Campeã de xadrez da escola e futura astronauta, segundo ela.","","Barreiras, BA")]),
+  P("Fernanda Mendes","n. 1984","Arquiteta que restaura casarões históricos.","Tiago Prado","Salvador, BA")],335),
+ P("Carlos Albuquerque","n. 1956","Médico de família; atende na cidade há mais de trinta anos.","Lúcia Fontes","Vitória da Conquista, BA",[
+  P("Gabriel Albuquerque","n. 1983","Desenvolvedor de software e cozinheiro de domingo.","Ana Beatriz","Campinas, SP",[
+   P("Otávio Albuquerque","n. 2015","Descobriu os dinossauros aos três anos e nunca mais parou.","","Campinas, SP")]),
+  P("Helena Fontes","n. 1986","Chef de cozinha; guarda as receitas da bisavó.","","Rio de Janeiro, RJ"),
+  P("Igor Albuquerque","n. 1990","Músico e produtor, toca em três bandas.","","Belo Horizonte, MG")],205),
+ P("Dora Albuquerque","n. 1960","Advogada e primeira da família a se formar na universidade.","Márcio Teixeira","Recife, PE",[
+  P("Júlia Teixeira","n. 1988","Bióloga marinha que estuda recifes de coral.","Daniel Costa","Fernando de Noronha, PE",[
+   P("Pedro Costa","n. 2016","Goleiro do time da escola.","","Fernando de Noronha, PE"),
+   P("Rafael Costa","n. 2018","Desenha mapas de ilhas imaginárias.","","Fernando de Noronha, PE"),
+   P("Sofia Costa","n. 2021","A caçula, já nada melhor que todos.","","Fernando de Noronha, PE")]),
+  P("Lucas Teixeira","n. 1993","Fotógrafo de viagens; nunca está em casa.","","Lisboa, Portugal")],150)
+],35);
+
+const $=s=>document.querySelector(s);
+const stage=$('#stage'),world=$('#world'),hud=$('#hud'),hint=$('#hint'),g1=$('#g1'),g2=$('#g2');
+const sm=x=>{x=Math.min(1,Math.max(0,x));return x*x*(3-2*x)};
+const nodes=[];
+function build(p,parent,left,top){
+  const n={p,parent,kids:[],depth:parent?parent.depth+1:0,t:0};
+  n.s=parent?parent.s*K:1;
+  n.ax=parent?parent.ax+left*parent.s:0;
+  n.ay=parent?parent.ay+top*parent.s:0;
+  n.h=p.h!=null?p.h:(parent?parent.h:35);
+  const c=p.k.length,leaf=!c,tot=c*300+(c-1)*60,x0=(1200-tot)/2;
+  const w=p.n.split(" "),ini=w[0][0]+w[w.length-1][0];
+  let paths="";
+  for(let i=0;i<c;i++){const cx=x0+i*360+150;paths+=`<path d="M600 250 C600 330 ${cx} 320 ${cx} 395"/>`}
+  const el=document.createElement('div');
+  el.className='f';el.style.setProperty('--h',n.h);
+  if(parent){el.style.left=left+'px';el.style.top=top+'px';el.style.transform='scale('+K+')'}
+  el.innerHTML=`<div class="shell"></div>
+  <div class="exp"><svg viewBox="0 0 1200 720" style="position:absolute;inset:0;width:100%;height:100%"><g fill="none" stroke="hsl(${n.h} 55% 55%/.65)" stroke-width="4" stroke-linecap="round">${paths}</g></svg>
+   <div class="head"><div class="av">${ini}</div><div><h2>${p.n}</h2><div class="y">${p.y}</div><p>${p.b}</p>
+   ${p.sp?`<span class="chip">♥ ${p.sp}</span>`:''}<span class="chip">⌖ ${p.pl}</span>${c?`<span class="chip">${c} ${c>1?'filhos':'filho'}</span>`:''}</div></div>
+   ${leaf?`<div class="facts"><div><small>Geração</small><b>${n.depth+1}ª</b></div><div><small>Cidade</small><b>${p.pl}</b></div><div><small>Cônjuge</small><b>${p.sp||'—'}</b></div></div>`:''}</div>
+  <div class="cmp"><div class="av">${ini}</div><b>${p.n}</b><span>${p.y}</span></div>
+  <div class="kids"></div>`;
+  (parent?parent.kidsEl:world).appendChild(el);
+  n.el=el;n.shell=el.children[0];n.exp=el.children[1];n.cmp=el.children[2];n.kidsEl=el.children[3];
+  el._n=n;nodes.push(n);
+  p.k.forEach((k,i)=>n.kids.push(build(k,n,x0+i*360,395)));
+  return n;
+}
+const root=build(DATA,null,0,0);
+
+const cam={x:0,y:0,z:1};let tz=1,anchor={x:0,y:0},fly=null,raf=0,lastTxt="";
+const fit=(sc,fr)=>fr/(sc*Math.max(FW/innerWidth,FH/innerHeight));
+const zmin=()=>fit(1,.34),zmax=()=>fit(K*K*K,1.7);
+const clampZ=z=>Math.min(zmax(),Math.max(zmin(),z));
+const set=(el,op,bl)=>{el.style.opacity=op;el.style.filter=bl>.3?`blur(${bl}px)`:'none'};
+
+function render(){
+  const vw=innerWidth,vh=innerHeight,z=cam.z;
+  world.style.transform=`translate(${cam.x}px,${cam.y}px) scale(${z})`;
+  const wx=(vw/2-cam.x)/z,wy=(vh/2-cam.y)/z;let focus=root;
+  for(const n of nodes){
+    const w=FW*n.s*z,h=FH*n.s*z,sx=cam.x+n.ax*z,sy=cam.y+n.ay*z;
+    const f=Math.max(w/vw,h/vh),t=sm((f-.3)/.32);n.t=t;
+    const vis=n.parent?n.parent.t:1;
+    const off=sx>vw||sy>vh||sx+w<0||sy+h<0||w<5||vis<.02;
+    n.el.style.display=off?'none':'';
+    if(off)continue;
+    const loc=1/(z*n.s),fade=sm((f-2.2)/1.8);
+    n.el.style.pointerEvents=vis<.3?'none':'';
+    set(n.el,vis,(1-vis)*14*loc);
+    n.shell.style.opacity=1-fade;
+    set(n.exp,t*(1-fade),((1-t)*9+fade*14)*loc);
+    set(n.cmp,1-t,t*9*loc);
+    n.exp.style.display=t<.02?'none':'';
+    n.cmp.style.display=t>.98?'none':'';
+    if(t>.45&&n.depth>=focus.depth&&wx>=n.ax&&wx<=n.ax+FW*n.s&&wy>=n.ay&&wy<=n.ay+FH*n.s)focus=n;
+  }
+  const lz=Math.log(z)/Math.log(4),fr=lz-Math.floor(lz),sa=90*Math.pow(4,fr),sb=sa/4;
+  g1.style.backgroundSize=sa+'px '+sa+'px';g1.style.backgroundPosition=(cam.x%sa)+'px '+(cam.y%sa)+'px';g1.style.opacity=1-fr;
+  g2.style.backgroundSize=sb+'px '+sb+'px';g2.style.backgroundPosition=(cam.x%sb)+'px '+(cam.y%sb)+'px';g2.style.opacity=fr;
+  const path=[];for(let m=focus;m;m=m.parent)path.unshift(m.p.n.split(" ")[0]);
+  const txt=`<small>Geração ${focus.depth+1} · Família Albuquerque</small><b>${path.join(' › ')}</b>`;
+  if(txt!==lastTxt){hud.innerHTML=txt;lastTxt=txt}
+}
+function frame(now){
+  raf=0;let busy=false;
+  if(fly){
+    const u=Math.min(1,(now-fly.t0)/fly.dur),e=u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
+    const z=fly.z0*Math.pow(fly.z1/fly.z0,e),d=1/fly.z1-1/fly.z0;
+    const p=Math.abs(d)<1e-9?e:(1/z-1/fly.z0)/d;
+    const cx=fly.c0.x+(fly.c1.x-fly.c0.x)*p,cy=fly.c0.y+(fly.c1.y-fly.c0.y)*p;
+    cam.z=tz=z;cam.x=innerWidth/2-cx*z;cam.y=innerHeight/2-cy*z;
+    if(u>=1)fly=null;busy=true;
+  }else{
+    const dl=Math.log(tz/cam.z);
+    if(Math.abs(dl)>.0004){
+      const nz=cam.z*Math.exp(dl*.2),r=nz/cam.z;
+      cam.x=anchor.x-(anchor.x-cam.x)*r;cam.y=anchor.y-(anchor.y-cam.y)*r;cam.z=nz;busy=true;
+    }
+  }
+  render();if(busy)kick();
+}
+function kick(){if(!raf)raf=requestAnimationFrame(frame)}
+function zoomAt(mx,my,k){tz=clampZ(tz*k);anchor={x:mx,y:my};fly=null;kick()}
+function flyTo(n,dur=1300){
+  const vw=innerWidth,vh=innerHeight;
+  fly={z0:cam.z,z1:fit(n.s,.78),c0:{x:(vw/2-cam.x)/cam.z,y:(vh/2-cam.y)/cam.z},c1:{x:n.ax+FW*n.s/2,y:n.ay+FH*n.s/2},t0:performance.now(),dur};kick();
+}
+const quiet=()=>hint.classList.add('off');
+
+stage.addEventListener('wheel',e=>{
+  e.preventDefault();quiet();
+  const d=e.deltaMode===1?e.deltaY*16:e.deltaY;
+  zoomAt(e.clientX,e.clientY,Math.exp(-d*(e.ctrlKey?.01:.0018)));
+},{passive:false});
+
+const ptrs=new Map();let moved=0;
+const pinch=()=>{const[a,b]=[...ptrs.values()];return{d:Math.hypot(a.x-b.x,a.y-b.y)||1,x:(a.x+b.x)/2,y:(a.y+b.y)/2}};
+stage.addEventListener('pointerdown',e=>{
+  stage.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  fly=null;moved=0;stage.classList.add('drag');quiet();
+});
+stage.addEventListener('pointermove',e=>{
+  const p=ptrs.get(e.pointerId);if(!p)return;
+  if(ptrs.size>=2){
+    const o=pinch();p.x=e.clientX;p.y=e.clientY;const q=pinch();
+    const nz=clampZ(cam.z*q.d/o.d),r=nz/cam.z;
+    cam.x=q.x-(o.x-cam.x)*r;cam.y=q.y-(o.y-cam.y)*r;cam.z=tz=nz;moved+=99;
+  }else{
+    const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+    moved+=Math.abs(dx)+Math.abs(dy);cam.x+=dx;cam.y+=dy;
+  }
+  kick();
+});
+const up=e=>{
+  ptrs.delete(e.pointerId);
+  if(!ptrs.size){
+    stage.classList.remove('drag');
+    if(e.type==='pointerup'&&moved<8){
+      const el=document.elementFromPoint(e.clientX,e.clientY),fr=el&&el.closest('.f');
+      if(fr&&fr._n.t<.85)flyTo(fr._n);
+    }
+  }
+};
+stage.addEventListener('pointerup',up);stage.addEventListener('pointercancel',up);
+
+const cx=()=>innerWidth/2,cy=()=>innerHeight/2;
+$('#zi').onclick=()=>{quiet();zoomAt(cx(),cy(),1.7)};
+$('#zo').onclick=()=>{quiet();zoomAt(cx(),cy(),1/1.7)};
+$('#hm').onclick=()=>{quiet();flyTo(root,1500)};
+addEventListener('keydown',e=>{
+  if(e.key==='+'||e.key==='=')zoomAt(cx(),cy(),1.5);
+  else if(e.key==='-')zoomAt(cx(),cy(),1/1.5);
+  else if(e.key==='Home'||e.key==='0')flyTo(root,1500);
+});
+addEventListener('resize',()=>{tz=cam.z=clampZ(cam.z);kick()});
+
+cam.z=tz=fit(1,.34);cam.x=innerWidth/2-600*cam.z;cam.y=innerHeight/2-360*cam.z;
+render();flyTo(root,1800);
+})();
+</script>
+</body>
+</html>
