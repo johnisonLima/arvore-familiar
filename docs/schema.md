@@ -177,7 +177,33 @@ Consultas esperadas:
 - Campos novos devem ser opcionais ou acompanhados de migração e bump de versão.
 - Campos derivados, de UI ou de banco (`_rev`, `_id` externo, cor, geração, idade) ficam fora do domínio.
 
-## Estado da implementação (Fase 1)
+## Persistência local (Fase 3)
+
+O documento salvo no navegador não é gravado diretamente: ele vai dentro de um envelope de armazenamento próprio, para que a camada local possa evoluir sem alterar o schema da família.
+
+```json
+{
+  "format": "arvore-familiar/document",
+  "formatVersion": 1,
+  "savedAt": "2026-11-17T18:00:00.000Z",
+  "data": {
+    "schemaVersion": 1,
+    "meta": { "...": "..." },
+    "persons": { "...": "..." },
+    "unions": { "...": "..." }
+  }
+}
+```
+
+- Chave do documento: `arvore-familiar:document`.
+- Chave das preferências de visualização: `arvore-familiar:view`, com `rootId`, `generations` (`2`–`5` ou `"all"`) e `savedAt`. Não faz parte do domínio e pode ser descartada.
+- A importação aceita o documento puro (formato exportado) ou o envelope interno.
+- A exportação grava o documento puro, com chaves ordenadas e indentação de 2 espaços.
+- O limite de importação é 5 MB por arquivo.
+- Pessoas com `private: true` podem ser exportadas com `id`, `name`, `sex` e a própria flag, sem datas, local, biografia, foto ou apelidos.
+- Se o `localStorage` estiver indisponível, um adaptador em memória mantém a sessão; nada sobrevive ao recarregamento.
+
+## Estado da implementação (Fases 1–3)
 
 | Módulo | Arquivo | Cobertura |
 | --- | --- | --- |
@@ -187,7 +213,10 @@ Consultas esperadas:
 | Relacionamento | `src/domain/relationship.ts` | BFS, passos e rótulos comuns + fallback |
 | Migração | `src/data/migrate-v0.ts` | Seed legado → 25 pessoas, 8 uniões, 16 vínculos |
 | Dados gerados | `src/data/family.json` | Documento v1 versionado |
-| Testes | `src/**/*.test.ts` | 58 testes de domínio, grafo, relacionamento e migração |
+| Layout | `src/layout/tree.ts` | Layout plano, uniões empilhadas, limites e arestas |
+| View | `src/view/tree-view.ts` | Câmera, LOD, cards, barras, HUD e re-root |
+| Persistência | `src/storage/` | Documento, preferências, importação, exportação e privacidade |
+| Testes | `src/**/*.test.ts` | 122 testes de domínio, grafo, relacionamento, layout, formatação e storage |
 
 ## Migração do seed original (v0 → v1)
 
@@ -253,6 +282,8 @@ Para o protótipo, a família inteira pode ser um documento:
   "unions": { "...": "..." }
 }
 ```
+
+Na Fase 3, o adaptador local já implementa esse documento único no `localStorage`, com envelope e validação. `_id`/`_rev` e controle de concorrência ficam para o adaptador de banco.
 
 Se o documento crescer ou a edição for multiusuário:
 

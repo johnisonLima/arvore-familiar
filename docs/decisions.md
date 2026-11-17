@@ -172,3 +172,36 @@ Data: 2026-11-17
 - `prefers-reduced-motion` desativa as animações.
 - O HUD exibe raiz, datas/local, contagens, botões de pai/mãe e o seletor de gerações.
 - A barra de união vira alvo de re-root quando há exatamente um parceiro; cartões também reenraízam.
+
+## ADR-013 — Persistência local com envelope versionado
+
+Data: 2026-11-17
+
+**Decisão:** persistir o documento no `localStorage` dentro de um envelope próprio (`format`, `formatVersion`, `savedAt`, `data`) e manter as preferências de visualização em uma chave separada. O acesso passa por uma interface `KeyValueStorage`, com fallback em memória.
+
+**Motivo:** o schema da família já tem `schemaVersion`, mas a camada de armazenamento também evolui (localStorage → IndexedDB, mudanças de chave e de metadados). Um envelope separado permite versionar e diagnosticar a cópia local sem contaminar o documento. As preferências de UI não pertencem ao domínio e podem ser descartadas sem perda genealógica.
+
+**Consequências:**
+
+- Chaves: `arvore-familiar:document` e `arvore-familiar:view`.
+- A leitura valida o documento; cópia corrompida, formato desconhecido ou versão futura é ignorada com aviso e o exemplo embutido é aberto.
+- A gravação valida antes de escrever; erros de cota são mapeados para `quota` e o app continua apenas na sessão.
+- Sem `localStorage` (modo privado/política), um adaptador em memória mantém o app funcional e o painel indica que a cópia não sobrevive ao reload.
+- A importação grava automaticamente. Como ainda não há editor, essa é a única mutação persistida nesta fase; a Fase 4 reutiliza o mesmo store a cada edição.
+- IndexedDB pode substituir o adaptador sem mudar o domínio nem a UI, se o documento crescer.
+
+## ADR-014 — Importação/exportação portátil e privacidade
+
+Data: 2026-11-17
+
+**Decisão:** exportar o documento puro, com chaves ordenadas e JSON indentado, e aceitar tanto esse formato quanto o envelope interno na importação. Limitar arquivos a 5 MB, validar antes de aplicar e oferecer uma exportação que remove detalhes de pessoas com `private: true`.
+
+**Motivo:** o arquivo exportado deve ser legível por outras ferramentas e sobreviver à evolução do armazenamento local. A validação antes da troca de documento evita que uma importação inválida derrube a árvore atual. A redação preserva `id` e nome para manter as referências das uniões válidas, sem expor datas, locais, biografia, foto ou apelidos.
+
+**Consequências:**
+
+- Exportações iguais geram arquivos iguais (ordenação determinística por id).
+- Erros de importação são exibidos por caminho (`$.unions...`), limitados às primeiras ocorrências.
+- Arrastar um `.json` para a tela usa o mesmo caminho de validação do seletor de arquivo.
+- A cópia local não é apagada quando uma importação falha.
+- O botão “Restaurar exemplo” limpa documento e preferências locais.

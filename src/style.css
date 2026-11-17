@@ -615,3 +615,210 @@ select {
     transition: none;
   }
 }
+
+/* Painel de dados */
+
+.data-panel {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: min(340px, calc(100vw - 32px));
+}
+
+.data-panel__toggle {
+  padding: 9px 15px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--hud);
+  color: var(--ink);
+  font-size: 12px;
+  box-shadow: 0 10px 26px var(--shadow);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.data-panel__toggle:hover {
+  background: hsl(34 60% 55% / 0.16);
+}
+
+.data-panel__toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.data-panel__body {
+  width: min(340px, calc(100vw - 32px));
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--hud);
+  box-shadow: 0 18px 50px var(--shadow);
+  backdrop-filter: blur(16px) saturate(1.1);
+}
+
+.data-panel__heading {
+  margin: 0 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.data-panel__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.data-panel__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.data-panel__dot--local {
+  background: #2f9e6b;
+  box-shadow: 0 0 0 3px rgb(47 158 107 / 0.16);
+}
+
+.data-panel__dot--session {
+  background: #c98a2e;
+  box-shadow: 0 0 0 3px rgb(201 138 46 / 0.16);
+}
+
+.data-panel__dot--error {
+  background: #c94b3f;
+  box-shadow: 0 0 0 3px rgb(201 75 63 / 0.16);
+}
+
+.data-panel__detail {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.data-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+
+.data-panel__action {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.data-panel__action:hover:not(:disabled) {
+  background: hsl(34 60% 55% / 0.12);
+}
+
+.data-panel__action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.data-panel__action.is-danger {
+  color: #a33a31;
+  border-color: rgb(163 58 49 / 0.35);
+}
+
+.data-panel__action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.data-panel__error {
+  max-height: 160px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 10px;
+  background: rgb(201 75 63 / 0.12);
+  color: #8f2f27;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.data-panel__error-line {
+  margin: 0;
+}
+
+.data-panel__error-line + .data-panel__error-line {
+  margin-top: 4px;
+}
+
+.data-panel.is-busy .data-panel__toggle {
+  cursor: progress;
+}
+
+@media (prefers-color-scheme: dark) {
+  .data-panel__action.is-danger {
+    color: #f0a49c;
+    border-color: rgb(240 164 156 / 0.3);
+  }
+
+  .data-panel__error {
+    color: #ffc9c2;
+  }
+}
+
+/* Soltar arquivo para importar */
+
+.tree-app.is-dropping::after {
+  content: 'Solte o arquivo JSON para importar';
+  position: absolute;
+  inset: 18px;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  border: 2px dashed hsl(34 70% 52% / 0.6);
+  border-radius: 24px;
+  background: hsl(34 70% 52% / 0.08);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 640px) {
+  .data-panel {
+    left: max(12px, env(safe-area-inset-left, 0px));
+    bottom: max(64px, calc(env(safe-area-inset-bottom, 0px) + 64px));
+  }
+
+  .data-panel__body {
+    width: min(320px, calc(100vw - 24px));
+    padding: 12px 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .data-panel,
+  .data-panel__toggle,
+  .data-panel__action {
+    transition: none;
+  }
+}

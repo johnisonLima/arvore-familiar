@@ -4,7 +4,7 @@ Protótipo de árvore genealógica com zoom semântico, domínio normalizado de 
 
 ## Status
 
-**Fase 2 concluída.** A view tree posiciona cartões por geração, empilha as uniões de cada pessoa e desenha uma linha de filhos por união. A câmera tem pan, zoom por roda/pinça, LOD por escala, foco na raiz e enquadramento completo. Clicar num cartão ou na barra de união reenraíza a árvore; o HUD permite voltar aos pais e limitar gerações.
+**Fase 3 concluída.** A árvore tem layout plano por geração, câmera com zoom semântico, re-root e HUD. O documento pode ser importado/exportado como JSON e é salvo no `localStorage` com envelope versionado; a última raiz e o limite de gerações também são lembrados. Um painel `▤ Dados` concentra importação, exportação, restauração do exemplo e o estado da cópia local.
 
 ## Como rodar
 
@@ -13,7 +13,7 @@ Requer Node.js 20 ou superior.
 ```bash
 npm install
 npm run dev        # servidor Vite
-npm test           # testes de domínio, migração e relacionamento
+npm test           # testes de domínio, layout, formatação e persistência
 npm run build      # typecheck + build estático
 npm run generate:data  # regenera src/data/family.json a partir do seed legado
 ```
@@ -25,6 +25,29 @@ http://localhost:5173/?familia=fixture
 ```
 
 O protótipo visual antigo continua em `Árvore Familiar — Zoom Infinito.html`.
+
+## Persistência e arquivos
+
+O painel `▤ Dados` fica no canto inferior esquerdo:
+
+- **Importar JSON** aceita um documento familiar puro (ou o envelope interno). O arquivo é validado antes de substituir a árvore; erros aparecem no painel. Também é possível arrastar um `.json` para a tela.
+- **Exportar JSON** baixa o documento formatado, com chaves ordenadas para gerar arquivos estáveis.
+- **Exportar sem privados** remove datas, locais, biografia, foto e apelidos de pessoas com `private: true`, mantendo `id` e `nome` para que as uniões continuem válidas.
+- **Restaurar exemplo** remove a cópia local e as preferências, voltando ao seed embutido.
+
+O `localStorage` guarda dois registros independentes:
+
+| Chave | Conteúdo |
+| --- | --- |
+| `arvore-familiar:document` | Envelope `{ format, formatVersion, savedAt, data }` com o documento validado |
+| `arvore-familiar:view` | Última raiz e limite de gerações (`2`–`5` ou `Todas`) |
+
+Limites desta fase:
+
+- Importação de até **5 MB** por arquivo.
+- Apenas `localStorage`; um adaptador IndexedDB pode entrar atrás da mesma interface quando fotos ou documentos maiores justificarem.
+- Se o armazenamento estiver bloqueado ou a cota estourar, o app continua na sessão e o painel indica que a cópia não sobreviverá ao recarregamento.
+- A edição ainda não existe; a gravação automática acontece na importação. Na Fase 4, cada alteração do editor passa a usar o mesmo store.
 
 ## Decisões aprovadas
 
@@ -56,7 +79,14 @@ Detalhes em [`docs/decisions.md`](docs/decisions.md).
 │   │   └── tree.ts                        # layout plano por geração e uniões
 │   ├── view/
 │   │   ├── tree-view.ts                   # câmera, cards, barras, HUD e re-root
+│   │   ├── data-panel.ts                  # importar, exportar e estado local
 │   │   └── format.ts                      # iniciais, datas e rótulos de união
+│   ├── storage/
+│   │   ├── document-store.ts              # envelope, validação e cota
+│   │   ├── view-store.ts                  # raiz e gerações preferidas
+│   │   ├── transfer.ts                    # importação, exportação e privacidade
+│   │   ├── key-value.ts                   # localStorage + fallback em memória
+│   │   └── download.ts                    # download de Blob
 │   └── data/
 │       ├── legacy-seed.ts                 # cópia fiel do seed do HTML legado
 │       ├── migrate-v0.ts                  # migração linhagem única → uniões
@@ -74,6 +104,18 @@ Detalhes em [`docs/decisions.md`](docs/decisions.md).
 ├── Árvore Familiar — Zoom Infinito.md
 └── Árvore Familiar — Zoom Infinito.pdf
 ```
+
+## O que a Fase 3 entrega
+
+- Store de documento com envelope `format`/`formatVersion`/`savedAt`/`data`, validação na leitura e na gravação e diagnóstico de cota.
+- Fallback em memória quando o `localStorage` está indisponível, com aviso de sessão no painel.
+- Importação por seletor de arquivo ou arrastar-e-soltar, com limite de 5 MB e erros de validação por caminho.
+- Exportação determinística (chaves ordenadas) e exportação sem dados de pessoas marcadas como privadas.
+- Preferências de visualização persistidas: última raiz e limite de gerações, restauradas ao recarregar.
+- Restauração do exemplo embutido com limpeza da cópia local e das preferências.
+- Painel `▤ Dados` com estado da cópia local e feedback de importação/exportação.
+- Cópia local corrompida ou de versão futura é ignorada com aviso, sem impedir a abertura do exemplo.
+- 122 testes passando (domínio, layout, formatação, storage e transferência).
 
 ## O que a Fase 2 entrega
 
@@ -116,7 +158,7 @@ O schema completo e as invariantes estão em [`docs/schema.md`](docs/schema.md).
 | 0 | Git, decisões, schema e fixture sintética | Concluída |
 | 1 | Domínio normalizado, migração do seed, índices, consultas e testes | Concluída |
 | 2 | View tree por união, layout com filhos dinâmicos, re-root e HUD | Concluída |
-| 3 | Persistência (JSON local, localStorage/IndexedDB, import/export) | Pendente |
+| 3 | Persistência (JSON local, localStorage/IndexedDB, import/export) | Concluída |
 | 4 | Editor mínimo de pessoas, uniões e filhos | Pendente |
 | 5 | Acessibilidade, performance, segurança e testes E2E | Pendente |
 

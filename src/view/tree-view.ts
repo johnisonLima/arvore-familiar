@@ -19,9 +19,16 @@ const MEDIUM_MAX = 0.95;
 
 export type GenerationsSetting = number | 'all';
 
+export interface TreeViewState {
+  rootId: PersonId;
+  generations: GenerationsSetting;
+}
+
 export interface TreeViewOptions {
   rootId?: PersonId;
   generations?: GenerationsSetting;
+  /** Chamado quando o usuário reenraíza ou muda o limite de gerações. */
+  onStateChange?: (state: TreeViewState) => void;
 }
 
 export interface TreeView {
@@ -343,6 +350,7 @@ export function createTreeView(
     if (!graph.persons.has(personId) || personId === rootId) return;
     hideHint();
     rootId = personId;
+    options.onStateChange?.({ rootId, generations });
 
     swapTo(() => {
       layout = buildLayout();
@@ -363,6 +371,7 @@ export function createTreeView(
     hideHint();
     generations = value;
     generationsSelect.value = String(value);
+    options.onStateChange?.({ rootId, generations });
     layout = buildLayout();
     renderWorld();
     updateHud();
