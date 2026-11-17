@@ -139,3 +139,36 @@ Carlos Albuquerque
 - Meios-irmãos são alcançados via pai/mãe; irmãos completos podem usar a aresta direta de irmão.
 - O caminho não é necessariamente a rota genealógica mais “canônica” quando há múltiplos caminhos, mas é o menor em passos.
 - Um grafo completo/visual pode reutilizar as mesmas consultas sem alterar o domínio.
+
+## ADR-011 — Layout plano por geração com uniões empilhadas
+
+Data: 2026-11-17
+
+**Decisão:** abandonar o layout fractal aninhado do legado e usar um layout plano por geração. Cada pessoa ocupa um bloco vertical composto por cartão, barras de união e, para cada união, uma linha de filhos. Os blocos irmãos são posicionados horizontalmente e centralizados sob o bloco do genitor.
+
+**Motivo:** o layout aninhado do legado posiciona os filhos dentro do cartão do pai, o que dificulta acomodar segundos casamentos, meios-irmãos e uniões sem filhos sem sobreposição. Separar cada união em sua própria linha mantém a leitura genealógica explícita e permite calcular largura/altura de forma determinística, sem colisões.
+
+**Consequências:**
+
+- O bloco de uma pessoa mede a maior linha de filhos; a altura soma cartão, barras e linhas.
+- Uniões são ordenadas por ano de início e, em empate, pela ordem do documento.
+- Uma união sem filhos ocupa apenas a barra (sem linha de filhos).
+- Uma união entre dois descendentes é exibida apenas na primeira ocorrência para não duplicar o ramo.
+- O limite de gerações é relativo à raiz e produz crianças “não exibidas”, contabilizadas no HUD.
+- O layout é puro e testado com Vitest (sobreposição, limites, determinismo, fixture e seed).
+
+## ADR-012 — Zoom semântico por LOD e câmera própria
+
+Data: 2026-11-17
+
+**Decisão:** controlar a câmera (pan/zoom) em um `div` com `transform: translate3d(...) scale(...)` e trocar o nível de detalhe por escala: `compact` abaixo de `0.62`, `medium` abaixo de `0.95` e `full` acima disso. O HUD e os controles ficam fora do mundo transformado.
+
+**Motivo:** o zoom fractal do legado dependia de escala por nó e de medições de tela. Um único transform no contêiner é mais barato, previsível e adequado ao DOM; o LOD por escala preserva a leitura em afastamento sem esconder a estrutura.
+
+**Consequências:**
+
+- A câmera inicial foca a raiz em zoom ~`0.95`; `⤢` enquadra a árvore inteira.
+- Pan, roda e pinça atualizam a câmera diretamente; `requestAnimationFrame` anima zoom e voos.
+- `prefers-reduced-motion` desativa as animações.
+- O HUD exibe raiz, datas/local, contagens, botões de pai/mãe e o seletor de gerações.
+- A barra de união vira alvo de re-root quando há exatamente um parceiro; cartões também reenraízam.
