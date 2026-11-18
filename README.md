@@ -265,8 +265,12 @@ O schema completo e as invariantes estão em [`docs/schema.md`](docs/schema.md).
 | 3 | Persistência (JSON local, localStorage/IndexedDB, import/export) | Concluída |
 | 4 | Editor mínimo de pessoas, uniões e filhos | Concluída |
 | 5 | Acessibilidade, performance, segurança e testes E2E | Concluída |
+| 6 | Confiabilidade de entrega (CI, cobertura, headers, orçamento) | Planejada |
+| 7 | Busca, grafo completo, deep link, undo/redo e PDF | Planejada |
+| 8 | Modelo v2: vínculos qualificados, privacidade, fontes e fusão | Planejada |
+| 9 | Persistência durável, banco de documentos e colaboração | Planejada |
 
-Cada fase termina com relatório e `git diff`, e só avança após confirmação.
+Cada fase termina com relatório e `git diff`, e só avança após confirmação. Escopo, critérios de aceite e riscos das fases 6–9 estão em [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Protótipo legado
 
