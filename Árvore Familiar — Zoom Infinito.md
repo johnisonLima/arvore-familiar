@@ -1,1 +1,0 @@
-Role para dar zoom · arraste para mover · toque num cartão para voar até ele

@@ -5,9 +5,13 @@
     "description": "Dados migrados do seed embutido no protótipo original (linhagem única).",
     "rootPersonId": "p-antonio-albuquerque",
     "locale": "pt-BR",
-    "updatedAt": "2026-11-17T16:50:41.853Z"
+    "updatedAt": "2026-11-18T16:12:00.543Z"
   },
   "persons": {
+    "p-ana-beatriz": {
+      "id": "p-ana-beatriz",
+      "name": "Ana Beatriz"
+    },
     "p-antonio-albuquerque": {
       "id": "p-antonio-albuquerque",
       "name": "Antônio Albuquerque",
@@ -29,6 +33,32 @@
         "year": 1953
       }
     },
+    "p-camila-reis": {
+      "id": "p-camila-reis",
+      "name": "Camila Reis"
+    },
+    "p-carlos-albuquerque": {
+      "id": "p-carlos-albuquerque",
+      "name": "Carlos Albuquerque",
+      "birthPlace": "Vitória da Conquista, BA",
+      "bio": "Médico de família; atende na cidade há mais de trinta anos.",
+      "birth": {
+        "year": 1956
+      }
+    },
+    "p-daniel-costa": {
+      "id": "p-daniel-costa",
+      "name": "Daniel Costa"
+    },
+    "p-dora-albuquerque": {
+      "id": "p-dora-albuquerque",
+      "name": "Dora Albuquerque",
+      "birthPlace": "Recife, PE",
+      "bio": "Advogada e primeira da família a se formar na universidade.",
+      "birth": {
+        "year": 1960
+      }
+    },
     "p-eduardo-mendes": {
       "id": "p-eduardo-mendes",
       "name": "Eduardo Mendes",
@@ -37,6 +67,103 @@
       "birth": {
         "year": 1980
       }
+    },
+    "p-fernanda-mendes": {
+      "id": "p-fernanda-mendes",
+      "name": "Fernanda Mendes",
+      "birthPlace": "Salvador, BA",
+      "bio": "Arquiteta que restaura casarões históricos.",
+      "birth": {
+        "year": 1984
+      }
+    },
+    "p-gabriel-albuquerque": {
+      "id": "p-gabriel-albuquerque",
+      "name": "Gabriel Albuquerque",
+      "birthPlace": "Campinas, SP",
+      "bio": "Desenvolvedor de software e cozinheiro de domingo.",
+      "birth": {
+        "year": 1983
+      }
+    },
+    "p-helena-fontes": {
+      "id": "p-helena-fontes",
+      "name": "Helena Fontes",
+      "birthPlace": "Rio de Janeiro, RJ",
+      "bio": "Chef de cozinha; guarda as receitas da bisavó.",
+      "birth": {
+        "year": 1986
+      }
+    },
+    "p-helena-lima": {
+      "id": "p-helena-lima",
+      "name": "Helena Lima"
+    },
+    "p-igor-albuquerque": {
+      "id": "p-igor-albuquerque",
+      "name": "Igor Albuquerque",
+      "birthPlace": "Belo Horizonte, MG",
+      "bio": "Músico e produtor, toca em três bandas.",
+      "birth": {
+        "year": 1990
+      }
+    },
+    "p-jailson-almeida-lima": {
+      "id": "p-jailson-almeida-lima",
+      "name": "Jailson Almeida Lima",
+      "sex": "M",
+      "birthPlace": "Vitória da Conquista, BA",
+      "aliases": [
+        "Ilson",
+        "Jai"
+      ]
+    },
+    "p-joaquim-dos-santos-lima": {
+      "id": "p-joaquim-dos-santos-lima",
+      "name": "Joaquim dos Santos Lima",
+      "sex": "M",
+      "birthPlace": "Vitória da Conquista, BA",
+      "aliases": [
+        "Moreno"
+      ]
+    },
+    "p-johnisn-alemida-lima": {
+      "id": "p-johnisn-alemida-lima",
+      "name": "Johnison Alemida Lima",
+      "sex": "M",
+      "birth": {
+        "year": 1991
+      },
+      "birthPlace": "Vitória da Conquista",
+      "aliases": [
+        "Dinho"
+      ]
+    },
+    "p-julia-teixeira": {
+      "id": "p-julia-teixeira",
+      "name": "Terezinha Almeida Santos",
+      "birthPlace": "Encruzilhada, BA",
+      "sex": "F",
+      "aliases": [
+        "Tê"
+      ]
+    },
+    "p-lucas-teixeira": {
+      "id": "p-lucas-teixeira",
+      "name": "Lucas Teixeira",
+      "birthPlace": "Lisboa, Portugal",
+      "bio": "Fotógrafo de viagens; nunca está em casa.",
+      "birth": {
+        "year": 1993
+      }
+    },
+    "p-lucia-fontes": {
+      "id": "p-lucia-fontes",
+      "name": "Lúcia Fontes"
+    },
+    "p-marcio-teixeira": {
+      "id": "p-marcio-teixeira",
+      "name": "Márcio Teixeira"
     },
     "p-maria-mendes": {
       "id": "p-maria-mendes",
@@ -56,33 +183,6 @@
         "year": 2013
       }
     },
-    "p-fernanda-mendes": {
-      "id": "p-fernanda-mendes",
-      "name": "Fernanda Mendes",
-      "birthPlace": "Salvador, BA",
-      "bio": "Arquiteta que restaura casarões históricos.",
-      "birth": {
-        "year": 1984
-      }
-    },
-    "p-carlos-albuquerque": {
-      "id": "p-carlos-albuquerque",
-      "name": "Carlos Albuquerque",
-      "birthPlace": "Vitória da Conquista, BA",
-      "bio": "Médico de família; atende na cidade há mais de trinta anos.",
-      "birth": {
-        "year": 1956
-      }
-    },
-    "p-gabriel-albuquerque": {
-      "id": "p-gabriel-albuquerque",
-      "name": "Gabriel Albuquerque",
-      "birthPlace": "Campinas, SP",
-      "bio": "Desenvolvedor de software e cozinheiro de domingo.",
-      "birth": {
-        "year": 1983
-      }
-    },
     "p-otavio-albuquerque": {
       "id": "p-otavio-albuquerque",
       "name": "Otávio Albuquerque",
@@ -92,109 +192,51 @@
         "year": 2015
       }
     },
-    "p-helena-fontes": {
-      "id": "p-helena-fontes",
-      "name": "Helena Fontes",
-      "birthPlace": "Rio de Janeiro, RJ",
-      "bio": "Chef de cozinha; guarda as receitas da bisavó.",
-      "birth": {
-        "year": 1986
-      }
-    },
-    "p-igor-albuquerque": {
-      "id": "p-igor-albuquerque",
-      "name": "Igor Albuquerque",
-      "birthPlace": "Belo Horizonte, MG",
-      "bio": "Músico e produtor, toca em três bandas.",
-      "birth": {
-        "year": 1990
-      }
-    },
-    "p-dora-albuquerque": {
-      "id": "p-dora-albuquerque",
-      "name": "Dora Albuquerque",
-      "birthPlace": "Recife, PE",
-      "bio": "Advogada e primeira da família a se formar na universidade.",
-      "birth": {
-        "year": 1960
-      }
-    },
-    "p-julia-teixeira": {
-      "id": "p-julia-teixeira",
-      "name": "Júlia Teixeira",
-      "birthPlace": "Fernando de Noronha, PE",
-      "bio": "Bióloga marinha que estuda recifes de coral.",
-      "birth": {
-        "year": 1988
-      }
-    },
     "p-pedro-costa": {
       "id": "p-pedro-costa",
-      "name": "Pedro Costa",
-      "birthPlace": "Fernando de Noronha, PE",
-      "bio": "Goleiro do time da escola.",
+      "name": "Maria Eudes Alemida Lima",
+      "birthPlace": "Vitória da Conquista, BA",
       "birth": {
-        "year": 2016
-      }
+        "year": 1986
+      },
+      "sex": "F",
+      "aliases": [
+        "Fia"
+      ]
     },
     "p-rafael-costa": {
       "id": "p-rafael-costa",
-      "name": "Rafael Costa",
-      "birthPlace": "Fernando de Noronha, PE",
+      "name": "Joelson Almeida Lima",
+      "birthPlace": "Vitória da Conquista, BA",
       "bio": "Desenha mapas de ilhas imaginárias.",
       "birth": {
-        "year": 2018
-      }
-    },
-    "p-sofia-costa": {
-      "id": "p-sofia-costa",
-      "name": "Sofia Costa",
-      "birthPlace": "Fernando de Noronha, PE",
-      "bio": "A caçula, já nada melhor que todos.",
-      "birth": {
-        "year": 2021
-      }
-    },
-    "p-lucas-teixeira": {
-      "id": "p-lucas-teixeira",
-      "name": "Lucas Teixeira",
-      "birthPlace": "Lisboa, Portugal",
-      "bio": "Fotógrafo de viagens; nunca está em casa.",
-      "birth": {
-        "year": 1993
-      }
-    },
-    "p-helena-lima": {
-      "id": "p-helena-lima",
-      "name": "Helena Lima"
+        "year": 1989
+      },
+      "sex": "M",
+      "aliases": [
+        "Jó"
+      ]
     },
     "p-roberto-mendes": {
       "id": "p-roberto-mendes",
       "name": "Roberto Mendes"
     },
-    "p-camila-reis": {
-      "id": "p-camila-reis",
-      "name": "Camila Reis"
+    "p-sofia-costa": {
+      "id": "p-sofia-costa",
+      "name": "Eudiene Almeida Lima",
+      "birthPlace": "Vitória da Conquista, BA",
+      "bio": "A caçula, já nada melhor que todos.",
+      "birth": {
+        "year": 1986
+      },
+      "sex": "F",
+      "aliases": [
+        "Preta"
+      ]
     },
     "p-tiago-prado": {
       "id": "p-tiago-prado",
       "name": "Tiago Prado"
-    },
-    "p-lucia-fontes": {
-      "id": "p-lucia-fontes",
-      "name": "Lúcia Fontes"
-    },
-    "p-ana-beatriz": {
-      "id": "p-ana-beatriz",
-      "name": "Ana Beatriz"
-    },
-    "p-marcio-teixeira": {
-      "id": "p-marcio-teixeira",
-      "name": "Márcio Teixeira"
-    },
-    "p-daniel-costa": {
-      "id": "p-daniel-costa",
-      "name": "Daniel Costa"
     }
   },
   "unions": {
@@ -221,6 +263,29 @@
         "p-fernanda-mendes"
       ]
     },
+    "u-carlos-albuquerque-lucia-fontes": {
+      "id": "u-carlos-albuquerque-lucia-fontes",
+      "partners": [
+        "p-carlos-albuquerque",
+        "p-lucia-fontes"
+      ],
+      "children": [
+        "p-gabriel-albuquerque",
+        "p-helena-fontes",
+        "p-igor-albuquerque"
+      ]
+    },
+    "u-dora-albuquerque-marcio-teixeira": {
+      "id": "u-dora-albuquerque-marcio-teixeira",
+      "partners": [
+        "p-dora-albuquerque",
+        "p-marcio-teixeira"
+      ],
+      "children": [
+        "p-julia-teixeira",
+        "p-lucas-teixeira"
+      ]
+    },
     "u-eduardo-mendes-camila-reis": {
       "id": "u-eduardo-mendes-camila-reis",
       "partners": [
@@ -240,18 +305,6 @@
       ],
       "children": []
     },
-    "u-carlos-albuquerque-lucia-fontes": {
-      "id": "u-carlos-albuquerque-lucia-fontes",
-      "partners": [
-        "p-carlos-albuquerque",
-        "p-lucia-fontes"
-      ],
-      "children": [
-        "p-gabriel-albuquerque",
-        "p-helena-fontes",
-        "p-igor-albuquerque"
-      ]
-    },
     "u-gabriel-albuquerque-ana-beatriz": {
       "id": "u-gabriel-albuquerque-ana-beatriz",
       "partners": [
@@ -262,27 +315,18 @@
         "p-otavio-albuquerque"
       ]
     },
-    "u-dora-albuquerque-marcio-teixeira": {
-      "id": "u-dora-albuquerque-marcio-teixeira",
-      "partners": [
-        "p-dora-albuquerque",
-        "p-marcio-teixeira"
-      ],
-      "children": [
-        "p-julia-teixeira",
-        "p-lucas-teixeira"
-      ]
-    },
     "u-julia-teixeira-daniel-costa": {
       "id": "u-julia-teixeira-daniel-costa",
       "partners": [
         "p-julia-teixeira",
-        "p-daniel-costa"
+        "p-joaquim-dos-santos-lima"
       ],
       "children": [
         "p-pedro-costa",
         "p-rafael-costa",
-        "p-sofia-costa"
+        "p-sofia-costa",
+        "p-johnisn-alemida-lima",
+        "p-jailson-almeida-lima"
       ]
     }
   }
