@@ -130,3 +130,33 @@ test('restaura o foco no campo depois do autosave', async ({ page }) => {
   await expect(bio).toBeFocused();
   await expect(bio).toHaveValue('Biografia atualizada');
 });
+
+test('salva apelidos e foto enviada no documento e apresenta apelidos no cartão', async ({ page }) => {
+  await openApp(page);
+  await openEditor(page);
+  const form = personForm(page);
+  await form.locator('textarea[name="aliases"]').fill('Nena\nMariazinha');
+  await form.locator('input[type="file"][accept^="image/"]').setInputFiles({
+    name: 'foto original.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=', 'base64'),
+  });
+  await expect(form.locator('span.editor__hint')).toContainText(/Nome sugerido: p-/);
+  await form.getByRole('button', { name: 'Salvar pessoa' }).click();
+
+  const saved = await storedDocument(page);
+  const root = saved?.persons[seed.meta.rootPersonId];
+  expect(root?.aliases).toEqual(['Nena', 'Mariazinha']);
+  expect(root?.photo).toMatch(/^data:image\/png;base64,/);
+  await expect(page.locator('.person-card.is-root .person-card__place')).toHaveText('Nena, Mariazinha');
+  await expect(page.locator('.person-card.is-root .person-card__photo')).toBeVisible();
+});
+
+test('oculta os controles no modo público e mostra no modo admin', async ({ page }) => {
+  await openApp(page, { admin: false });
+  await expect(page.locator('.hud__button--edit')).toBeHidden();
+  await expect(page.locator('.data-panel')).toBeHidden();
+  await page.goto('/?admin=1');
+  await expect(page.locator('.hud__button--edit')).toBeVisible();
+  await expect(page.locator('.data-panel')).toBeVisible();
+});

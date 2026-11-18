@@ -46,6 +46,18 @@ const tinyFamily = (): FamilyData => ({
 });
 
 describe('createPerson', () => {
+  it('normaliza apelidos e foto ao criar e atualizar pessoa', () => {
+    const created = createPerson(seed, {
+      name: 'Pessoa com nomes',
+      aliases: ['  Nena ', '', 'Nena', 'Mariazinha'],
+      photo: 'data:image/png;base64,AA==',
+    });
+    expect(created.person.aliases).toEqual(['Nena', 'Mariazinha']);
+    expect(created.person.photo).toBe('data:image/png;base64,AA==');
+    const updated = updatePerson(created.data, created.person.id, { aliases: [], photo: null });
+    expect(updated.persons[created.person.id].aliases).toBeUndefined();
+    expect(updated.persons[created.person.id].photo).toBeUndefined();
+  });
   it('cria pessoa com id derivado e campos normalizados', () => {
     const result = createPerson(seed, {
       name: '  Nova Pessoa ',

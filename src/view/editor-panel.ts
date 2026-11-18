@@ -24,6 +24,7 @@ import {
   type PersonPatch,
 } from '../editor/mutations';
 import { unionMeta } from './format';
+import { slugifyId } from '../editor/ids';
 
 export interface EditorFocus {
   personId?: PersonId | null;
@@ -114,6 +115,8 @@ const readPersonInput = (form: FormData): PersonInput => ({
   deathYear: yearFrom(form, 'deathYear', 'Falecimento'),
   birthPlace: text(form, 'birthPlace'),
   bio: text(form, 'bio'),
+  aliases: aliasesFrom(form),
+  photo: text(form, 'photo') || null,
   private: form.has('private'),
 });
 
@@ -124,8 +127,13 @@ const readPersonPatch = (form: FormData): PersonPatch => ({
   deathYear: yearFrom(form, 'deathYear', 'Falecimento'),
   birthPlace: text(form, 'birthPlace'),
   bio: text(form, 'bio'),
+  aliases: aliasesFrom(form),
+  photo: text(form, 'photo') || null,
   private: form.has('private'),
 });
+
+const aliasesFrom = (form: FormData): string[] =>
+  text(form, 'aliases').split(/[\n,;]/).map((value) => value.trim()).filter(Boolean);
 
 const inputField = (
   label: string,
@@ -548,6 +556,12 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
         textArea('bio', target?.bio ?? ''),
         'editor__field--wide',
       ),
+      inputField(
+        'Apelidos e outros nomes',
+        textArea('aliases', (target?.aliases ?? []).join('\n'), 2),
+        'editor__field--wide',
+      ),
+      renderPhotoField(target, form),
       checkboxField('private', 'Dados privados (omitidos na exportação pública)', target?.private === true),
     );
 
@@ -608,6 +622,60 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
     });
 
     return form;
+  }
+
+  function renderPhotoField(target: Person | null, form: HTMLFormElement): HTMLElement {
+    const wrapper = element('div', 'editor__field editor__field--wide');
+    wrapper.append(element('span', 'editor__field-label', 'Foto'));
+    const hidden = textInput('photo', target?.photo ?? '');
+    hidden.type = 'hidden';
+    wrapper.append(hidden);
+    const upload = element('input', 'editor__input');
+    upload.type = 'file';
+    upload.accept = 'image/jpeg,image/png,image/webp';
+    upload.setAttribute('aria-label', 'Enviar foto');
+    wrapper.append(upload);
+    const status = element('span', 'editor__hint', target?.photo ? 'Foto atual carregada.' : 'JPEG, PNG ou WebP. A imagem fica no documento deste navegador.');
+    wrapper.append(status);
+    if (target?.photo) {
+      const preview = element('img', 'editor__photo-preview');
+      preview.src = target.photo;
+      preview.alt = `Foto de ${target.name}`;
+      wrapper.append(preview, actionButton('Remover foto', 'editor__ghost', () => {
+        hidden.value = '';
+        status.textContent = 'Foto removida; salve a pessoa para confirmar.';
+        preview.remove();
+      }));
+    }
+    upload.addEventListener('change', () => {
+      const file = upload.files?.[0];
+      if (!file) return;
+      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+        status.textContent = 'Formato não suportado. Use JPEG, PNG ou WebP.';
+        upload.value = '';
+        return;
+      }
+      if (file.size > 3 * 1024 * 1024) {
+        status.textContent = 'A imagem deve ter até 3 MB.';
+        upload.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        if (typeof reader.result !== 'string') return;
+        hidden.value = reader.result;
+        const base = target?.id ?? `p-${slugifyId((form.elements.namedItem('name') as HTMLInputElement)?.value ?? '') || 'pessoa'}`;
+        const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+        status.textContent = `Selecionada. Nome sugerido: ${base}.${extension}. Salve o documento para manter a foto.`;
+        const download = element('a', 'editor__hint', 'Baixar cópia com nome sugerido');
+        download.href = reader.result;
+        download.download = `${base}.${extension}`;
+        wrapper.querySelector('.editor__hint + a')?.remove();
+        wrapper.append(download);
+      });
+      reader.readAsDataURL(file);
+    });
+    return wrapper;
   }
 
   function renderUnionSection(): HTMLElement {

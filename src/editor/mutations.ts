@@ -33,6 +33,8 @@ export interface PersonInput {
   deathYear?: number | null;
   birthPlace?: string | null;
   bio?: string | null;
+  aliases?: string[] | null;
+  photo?: string | null;
   private?: boolean;
 }
 
@@ -43,6 +45,8 @@ export interface PersonPatch {
   deathYear?: number | null;
   birthPlace?: string | null;
   bio?: string | null;
+  aliases?: string[] | null;
+  photo?: string | null;
   private?: boolean;
 }
 
@@ -107,10 +111,17 @@ const buildPerson = (id: PersonId, input: PersonInput): Person => {
   if (birthPlace) person.birthPlace = birthPlace;
   const bio = trimOrUndefined(input.bio);
   if (bio) person.bio = bio;
+  const aliases = normalizeAliases(input.aliases);
+  if (aliases.length) person.aliases = aliases;
+  const photo = trimOrUndefined(input.photo);
+  if (photo) person.photo = photo;
   if (input.private) person.private = true;
 
   return person;
 };
+
+const normalizeAliases = (values: string[] | null | undefined): string[] =>
+  [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
 
 const applyPersonPatch = (person: Person, patch: PersonPatch): void => {
   if (patch.name !== undefined) {
@@ -146,6 +157,18 @@ const applyPersonPatch = (person: Person, patch: PersonPatch): void => {
     const bio = trimOrUndefined(patch.bio);
     if (bio) person.bio = bio;
     else delete person.bio;
+  }
+
+  if (patch.aliases !== undefined) {
+    const aliases = normalizeAliases(patch.aliases);
+    if (aliases.length) person.aliases = aliases;
+    else delete person.aliases;
+  }
+
+  if (patch.photo !== undefined) {
+    const photo = trimOrUndefined(patch.photo);
+    if (photo) person.photo = photo;
+    else delete person.photo;
   }
 
   if (patch.private !== undefined) {

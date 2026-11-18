@@ -44,13 +44,17 @@ export const seed = JSON.parse(
 export interface OpenOptions {
   fixture?: boolean;
   document?: FamilyData;
+  admin?: boolean;
 }
 
 /** Abre o app com armazenamento limpo e, opcionalmente, um documento semeado. */
 export async function openApp(page: Page, options: OpenOptions = {}): Promise<void> {
   // Testes determinísticos: sem voos de câmera, o transform fica estável.
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(options.fixture ? '/?familia=fixture' : '/');
+  const params = new URLSearchParams();
+  if (options.fixture) params.set('familia', 'fixture');
+  if (options.admin !== false) params.set('admin', '1');
+  await page.goto(`/?${params.toString()}`);
   await page.evaluate(() => localStorage.clear());
 
   if (options.document) {

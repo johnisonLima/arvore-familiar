@@ -29,6 +29,9 @@ if (!appElement) throw new Error('Elemento #app não encontrado.');
 const app: HTMLDivElement = appElement;
 
 let fixtureMode = new URLSearchParams(window.location.search).get('familia') === 'fixture';
+// GitHub Pages não tem autorização no servidor. Este parâmetro só oculta os controles
+// na visualização compartilhada; não deve ser tratado como controle de acesso real.
+const adminMode = new URLSearchParams(window.location.search).get('admin') === '1';
 const resolvedStorage = resolveBrowserStorage(browserLocalStorage());
 const documentStore = createFamilyDocumentStore(
   resolvedStorage.storage,
@@ -51,6 +54,7 @@ const editor = createEditorPanel({
 });
 
 const panel = createDataPanel({
+  enabled: adminMode,
   onAction: (action, file) => {
     void handleAction(action, file);
   },
@@ -160,12 +164,12 @@ function render(data: FamilyData, options: RenderOptions = {}): void {
               generations: state.generations,
             });
           },
-    onToggleEditor: (rootId) => {
+    onToggleEditor: adminMode ? (rootId) => {
       if (editor.isOpen()) editor.close();
       else editor.open({ personId: rootId });
-    },
-    onEditPerson: (personId) => editor.open({ personId }),
-    onEditUnion: (unionId) => editor.open({ unionId }),
+    } : undefined,
+    onEditPerson: adminMode ? (personId) => editor.open({ personId }) : undefined,
+    onEditUnion: adminMode ? (unionId) => editor.open({ unionId }) : undefined,
   });
 
   editor.setDocument(data, { personId: view.getState().rootId });

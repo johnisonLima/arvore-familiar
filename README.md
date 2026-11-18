@@ -20,10 +20,10 @@ npm run build      # typecheck + build estático
 npm run generate:data  # regenera src/data/family.json a partir do seed legado
 ```
 
-A página inicial carrega o seed real. Use `?familia=fixture` para abrir a fixture sintética, que exercita segundo casamento, meios-irmãos, união sem filhos e união monoparental:
+A página inicial carrega o seed real em modo público, sem controles de edição, importação ou exportação. Para usar os controles administrativos, acrescente `?admin=1` ao endereço. Esse modo apenas oculta controles no cliente; GitHub Pages não oferece autenticação, então o parâmetro não protege os dados contra alguém que inspecione a aplicação. Use `?familia=fixture` para abrir a fixture sintética, que exercita segundo casamento, meios-irmãos, união sem filhos e união monoparental:
 
 ```text
-http://localhost:5173/?familia=fixture
+http://localhost:5173/?familia=fixture&admin=1
 ```
 
 O protótipo visual antigo continua em `Árvore Familiar — Zoom Infinito.html`.
@@ -71,6 +71,8 @@ O editor cobre três blocos:
 | Filhos | incluir pessoa existente, criar filho na união, remover filho |
 
 Cada operação passa por mutações puras em `src/editor/mutations.ts`, é validada com `validateFamilyData` e só então substitui o documento em memória, atualiza a árvore e grava no `localStorage`. A câmera não é reenquadrada durante a edição. Excluir uma pessoa remove seus vínculos; uniões que ficarem sem parceiros são removidas e os filhos continuam no documento.
+
+O formulário aceita apelidos separados por vírgula, ponto e vírgula ou quebra de linha; eles aparecem no cartão no espaço antes usado para o local de nascimento. A foto pode ser enviada em JPEG, PNG ou WebP até 3 MB. Ela é guardada como data URL no documento local e pode aumentar bastante o JSON exportado e consumir a cota do navegador. O nome sugerido para a imagem usa o ID da pessoa; o navegador não consegue gravar o arquivo na pasta publicada do GitHub Pages. Baixe a cópia renomeada pelo link do formulário se quiser adicioná-la manualmente ao repositório.
 
 ## Acessibilidade e teclado
 

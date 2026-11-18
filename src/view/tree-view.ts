@@ -506,7 +506,7 @@ export function createTreeView(
     const root = personOf(rootId);
     name.textContent = root.name;
 
-    const details = [lifespan(root), root.birthPlace].filter(Boolean);
+    const details = [lifespan(root), root.aliases?.join(', ')].filter(Boolean);
     meta.textContent = details.join(' · ') || 'Sem datas registradas';
 
     const hiddenCount = layout.hiddenPeopleCount;
@@ -690,7 +690,8 @@ export function createTreeView(
     const person = personOf(node.personId);
     const isRoot = node.depth === 0;
     const years = lifespan(person);
-    const details = [person.name, years, person.birthPlace, person.bio]
+    const aliases = person.aliases?.join(', ');
+    const details = [person.name, years, aliases, person.bio]
       .filter(Boolean)
       .join(' · ');
 
@@ -706,12 +707,18 @@ export function createTreeView(
 
     const avatar = element('div', 'person-card__avatar', initials(person.name));
     avatar.setAttribute('aria-hidden', 'true');
+    if (person.photo) {
+      const photo = element('img', 'person-card__photo');
+      photo.src = person.photo;
+      photo.alt = '';
+      avatar.replaceChildren(photo);
+    }
 
     const body = element('div', 'person-card__body');
     body.append(element('h2', 'person-card__name', person.name));
 
     if (years) body.append(element('p', 'person-card__dates', years));
-    if (person.birthPlace) body.append(element('p', 'person-card__place', person.birthPlace));
+    if (aliases) body.append(element('p', 'person-card__place', aliases));
     if (person.bio) body.append(element('p', 'person-card__bio', person.bio));
 
     card.append(avatar, body);
@@ -729,7 +736,7 @@ export function createTreeView(
     } else if (isRoot) {
       card.setAttribute(
         'aria-label',
-        `${[person.name, years, person.birthPlace].filter(Boolean).join(', ')}, raiz da árvore`,
+        `${[person.name, years, aliases].filter(Boolean).join(', ')}, raiz da árvore`,
       );
     } else {
       card.setAttribute('role', 'button');

@@ -104,8 +104,8 @@ interface FamilyData {
 - `sex`: opcional; usado para rótulos como pai/mãe e para exportação futura. Não bloqueia o cadastro.
 - `birth`/`death`: datas parciais. Use `raw` quando a precisão não permitir estruturação.
 - `birthPlace`: string livre nesta versão; cidade/UF no formato “Cidade, UF”.
-- `photo`: URL ou id de asset. Não usar base64 no JSON.
-- `aliases`: nomes alternativos para busca (nome de casada, apelido).
+- `photo`: URL, id de asset ou data URL criada pelo upload no editor. O upload local usa data URL e pode aumentar o documento; para publicação estática, também é possível adicionar a imagem ao repositório e guardar seu caminho.
+- `aliases`: nomes alternativos (nome de casada, apelido); aparecem no cartão no espaço do local de nascimento.
 - `private`: sinaliza dados que não devem sair em exportações compartilhadas.
 
 ### União

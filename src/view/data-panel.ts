@@ -10,6 +10,7 @@ export interface DataStatus {
 
 export interface DataPanelOptions {
   onAction(action: DataAction, file?: File): void;
+  enabled?: boolean;
 }
 
 export interface DataPanel {
@@ -102,6 +103,7 @@ export function createDataPanel(options: DataPanelOptions): DataPanel {
 
   body.append(heading, statusRow, detail, actions, error, input);
   panel.append(body, toggle);
+  panel.hidden = options.enabled === false;
   document.body.append(panel);
 
   const setOpen = (open: boolean): void => {
