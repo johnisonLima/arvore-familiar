@@ -34,6 +34,21 @@ const STATUSES = new Set<UnionStatus>([
 ]);
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
+/**
+ * Limites defensivos para importação e edição. O objetivo é manter a árvore
+ * responsiva e impedir que um JSON enorme trave a aba.
+ */
+export const FAMILY_LIMITS = {
+  maxPeople: 2000,
+  maxUnions: 2000,
+  maxChildrenPerUnion: 500,
+  maxNameLength: 160,
+  maxTextLength: 4000,
+  maxAliases: 12,
+  maxAliasLength: 120,
+  maxIdLength: 160,
+} as const;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -111,14 +126,23 @@ export function validateFamilyData(input: unknown): ValidationResult {
     error('INVALID_META', '$.meta', 'meta deve ser um objeto');
   } else {
     if (!isNonEmptyString(meta.title)) error('INVALID_TITLE', '$.meta.title', 'título obrigatório');
+    else if (meta.title.length > FAMILY_LIMITS.maxNameLength) {
+      error('TITLE_TOO_LONG', '$.meta.title', `título excede ${FAMILY_LIMITS.maxNameLength} caracteres`);
+    }
     if (!isNonEmptyString(meta.rootPersonId)) {
       error('INVALID_ROOT', '$.meta.rootPersonId', 'rootPersonId obrigatório');
+    } else if (meta.rootPersonId.length > FAMILY_LIMITS.maxIdLength) {
+      error('ROOT_TOO_LONG', '$.meta.rootPersonId', `rootPersonId excede ${FAMILY_LIMITS.maxIdLength} caracteres`);
     }
     if (meta.description !== undefined && typeof meta.description !== 'string') {
       error('INVALID_DESCRIPTION', '$.meta.description', 'description deve ser string');
+    } else if (typeof meta.description === 'string' && meta.description.length > FAMILY_LIMITS.maxTextLength) {
+      error('DESCRIPTION_TOO_LONG', '$.meta.description', `description excede ${FAMILY_LIMITS.maxTextLength} caracteres`);
     }
     if (meta.locale !== undefined && typeof meta.locale !== 'string') {
       error('INVALID_LOCALE', '$.meta.locale', 'locale deve ser string');
+    } else if (typeof meta.locale === 'string' && meta.locale.length > 20) {
+      error('LOCALE_TOO_LONG', '$.meta.locale', 'locale excede 20 caracteres');
     }
     if (meta.updatedAt !== undefined) {
       if (typeof meta.updatedAt !== 'string' || Number.isNaN(Date.parse(meta.updatedAt))) {
@@ -130,7 +154,13 @@ export function validateFamilyData(input: unknown): ValidationResult {
   const personsInput = isRecord(input.persons) ? input.persons : {};
   const unionsInput = isRecord(input.unions) ? input.unions : {};
   if (!isRecord(input.persons)) error('INVALID_PERSONS', '$.persons', 'persons deve ser um objeto');
+  else if (Object.keys(personsInput).length > FAMILY_LIMITS.maxPeople) {
+    error('TOO_MANY_PEOPLE', '$.persons', `máximo de ${FAMILY_LIMITS.maxPeople} pessoas por documento`);
+  }
   if (!isRecord(input.unions)) error('INVALID_UNIONS', '$.unions', 'unions deve ser um objeto');
+  else if (Object.keys(unionsInput).length > FAMILY_LIMITS.maxUnions) {
+    error('TOO_MANY_UNIONS', '$.unions', `máximo de ${FAMILY_LIMITS.maxUnions} uniões por documento`);
+  }
 
   const personIds = new Set(Object.keys(personsInput));
   const unionIds = new Set(Object.keys(unionsInput));
@@ -184,22 +214,41 @@ export function validateFamilyData(input: unknown): ValidationResult {
       error('PERSON_ID_MISMATCH', `${path}.id`, `id "${String(rawPerson.id)}" difere da chave`);
     }
     if (!isNonEmptyString(rawPerson.id)) error('INVALID_PERSON_ID', `${path}.id`, 'id obrigatório');
+    else if (rawPerson.id.length > FAMILY_LIMITS.maxIdLength) {
+      error('PERSON_ID_TOO_LONG', `${path}.id`, `id excede ${FAMILY_LIMITS.maxIdLength} caracteres`);
+    }
     if (!isNonEmptyString(rawPerson.name)) error('INVALID_PERSON_NAME', `${path}.name`, 'nome obrigatório');
+    else if (rawPerson.name.length > FAMILY_LIMITS.maxNameLength) {
+      error('NAME_TOO_LONG', `${path}.name`, `nome excede ${FAMILY_LIMITS.maxNameLength} caracteres`);
+    }
 
     if (rawPerson.sex !== undefined && !SEXES.has(String(rawPerson.sex))) {
       error('INVALID_SEX', `${path}.sex`, `sex inválido: ${String(rawPerson.sex)}`);
     }
     if (rawPerson.birthPlace !== undefined && typeof rawPerson.birthPlace !== 'string') {
       error('INVALID_BIRTH_PLACE', `${path}.birthPlace`, 'birthPlace deve ser string');
+    } else if (typeof rawPerson.birthPlace === 'string' && rawPerson.birthPlace.length > FAMILY_LIMITS.maxTextLength) {
+      error('BIRTH_PLACE_TOO_LONG', `${path}.birthPlace`, `local excede ${FAMILY_LIMITS.maxTextLength} caracteres`);
     }
     if (rawPerson.bio !== undefined && typeof rawPerson.bio !== 'string') {
       error('INVALID_BIO', `${path}.bio`, 'bio deve ser string');
+    } else if (typeof rawPerson.bio === 'string' && rawPerson.bio.length > FAMILY_LIMITS.maxTextLength) {
+      error('BIO_TOO_LONG', `${path}.bio`, `biografia excede ${FAMILY_LIMITS.maxTextLength} caracteres`);
     }
     if (rawPerson.private !== undefined && typeof rawPerson.private !== 'boolean') {
       error('INVALID_PRIVATE', `${path}.private`, 'private deve ser booleano');
     }
     if (rawPerson.aliases !== undefined && !isStringArray(rawPerson.aliases)) {
       error('INVALID_ALIASES', `${path}.aliases`, 'aliases deve ser string[] não vazio');
+    } else if (Array.isArray(rawPerson.aliases)) {
+      if (rawPerson.aliases.length > FAMILY_LIMITS.maxAliases) {
+        error('TOO_MANY_ALIASES', `${path}.aliases`, `máximo de ${FAMILY_LIMITS.maxAliases} apelidos`);
+      }
+      rawPerson.aliases.forEach((alias, index) => {
+        if (typeof alias === 'string' && alias.length > FAMILY_LIMITS.maxAliasLength) {
+          error('ALIAS_TOO_LONG', `${path}.aliases[${index}]`, `apelido excede ${FAMILY_LIMITS.maxAliasLength} caracteres`);
+        }
+      });
     }
     if (rawPerson.photo !== undefined) {
       if (typeof rawPerson.photo !== 'string') {
@@ -235,6 +284,9 @@ export function validateFamilyData(input: unknown): ValidationResult {
       error('UNION_ID_MISMATCH', `${path}.id`, `id "${String(rawUnion.id)}" difere da chave`);
     }
     if (!isNonEmptyString(rawUnion.id)) error('INVALID_UNION_ID', `${path}.id`, 'id obrigatório');
+    else if (rawUnion.id.length > FAMILY_LIMITS.maxIdLength) {
+      error('UNION_ID_TOO_LONG', `${path}.id`, `id excede ${FAMILY_LIMITS.maxIdLength} caracteres`);
+    }
 
     const partners = rawUnion.partners;
     const children = rawUnion.children;
@@ -243,6 +295,8 @@ export function validateFamilyData(input: unknown): ValidationResult {
     }
     if (!isStringArray(children)) {
       error('INVALID_CHILDREN', `${path}.children`, 'children deve ser string[]');
+    } else if (children.length > FAMILY_LIMITS.maxChildrenPerUnion) {
+      error('TOO_MANY_CHILDREN', `${path}.children`, `máximo de ${FAMILY_LIMITS.maxChildrenPerUnion} filhos por união`);
     }
 
     const partnerList = isStringArray(partners) ? partners : [];
@@ -287,9 +341,13 @@ export function validateFamilyData(input: unknown): ValidationResult {
     }
     if (rawUnion.place !== undefined && typeof rawUnion.place !== 'string') {
       error('INVALID_UNION_PLACE', `${path}.place`, 'place deve ser string');
+    } else if (typeof rawUnion.place === 'string' && rawUnion.place.length > FAMILY_LIMITS.maxTextLength) {
+      error('UNION_PLACE_TOO_LONG', `${path}.place`, `local excede ${FAMILY_LIMITS.maxTextLength} caracteres`);
     }
     if (rawUnion.note !== undefined && typeof rawUnion.note !== 'string') {
       error('INVALID_UNION_NOTE', `${path}.note`, 'note deve ser string');
+    } else if (typeof rawUnion.note === 'string' && rawUnion.note.length > FAMILY_LIMITS.maxTextLength) {
+      error('UNION_NOTE_TOO_LONG', `${path}.note`, `observação excede ${FAMILY_LIMITS.maxTextLength} caracteres`);
     }
 
     const start = validatePartialDate(rawUnion.start, `${path}.start`);

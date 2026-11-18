@@ -46,6 +46,7 @@ const editor = createEditorPanel({
     view?.setEditing(open);
     app.classList.toggle('is-editor-open', open);
     document.body.classList.toggle('is-editor-open', open);
+    if (!open) view?.focusEditButton();
   },
 });
 

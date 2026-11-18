@@ -4,7 +4,7 @@ Protótipo de árvore genealógica com zoom semântico, domínio normalizado de 
 
 ## Status
 
-**Fase 4 concluída.** A árvore tem layout plano por geração, câmera com zoom semântico, re-root e HUD. O documento pode ser importado/exportado como JSON e é salvo no `localStorage` com envelope versionado; a última raiz e o limite de gerações também são lembrados. Um painel `▤ Dados` concentra importação, exportação, restauração do exemplo e o estado da cópia local. O botão `✎ Editar` abre um editor de pessoas, uniões e filhos com gravação automática a cada alteração.
+**Fase 5 concluída.** A árvore tem layout plano por geração, câmera com zoom semântico, re-root e HUD. O documento pode ser importado/exportado como JSON e é salvo no `localStorage` com envelope versionado; a última raiz e o limite de gerações também são lembrados. Um painel `▤ Dados` concentra importação, exportação, restauração do exemplo e o estado da cópia local. O botão `✎ Editar` abre um editor de pessoas, uniões e filhos com gravação automática a cada alteração. A Fase 5 adiciona navegação acessível por teclado, renderização limitada à viewport em árvores grandes, cabeçalhos de segurança e uma suíte E2E com Playwright e axe-core.
 
 ## Como rodar
 
@@ -13,7 +13,9 @@ Requer Node.js 20 ou superior.
 ```bash
 npm install
 npm run dev        # servidor Vite
-npm test           # testes de domínio, layout, formatação, persistência e edição
+npm test           # testes unitários (domínio, layout, formatação, persistência e edição)
+npm run test:e2e   # testes E2E com Playwright (sobe o Vite na porta 4173)
+npm run bench      # benchmark de grafo/layout em famílias sintéticas
 npm run build      # typecheck + build estático
 npm run generate:data  # regenera src/data/family.json a partir do seed legado
 ```
@@ -45,6 +47,7 @@ O `localStorage` guarda dois registros independentes:
 Limites desta fase:
 
 - Importação de até **5 MB** por arquivo.
+- Documento de até **2.000 pessoas**, **2.000 uniões** e **500 filhos por união**; nome/id/título até 160 caracteres e textos até 4.000. Documentos acima disso são rejeitados com erro de validação.
 - Apenas `localStorage`; um adaptador IndexedDB pode entrar atrás da mesma interface quando fotos ou documentos maiores justificarem.
 - Se o armazenamento estiver bloqueado ou a cota estourar, o app continua na sessão e o painel indica que a cópia não sobreviverá ao recarregamento.
 - O editor grava uma alteração por vez, sempre validada antes de substituir o documento. Não há desfazer global nesta fase.
@@ -69,6 +72,39 @@ O editor cobre três blocos:
 
 Cada operação passa por mutações puras em `src/editor/mutations.ts`, é validada com `validateFamilyData` e só então substitui o documento em memória, atualiza a árvore e grava no `localStorage`. A câmera não é reenquadrada durante a edição. Excluir uma pessoa remove seus vínculos; uniões que ficarem sem parceiros são removidas e os filhos continuam no documento.
 
+## Acessibilidade e teclado
+
+- `Tab` a partir do início da página mostra o link **Pular para a árvore**, que leva o foco à região `#tree-stage`.
+- Na árvore, apenas um cartão participa da ordem de tabulação. As setas movem o foco espacialmente entre os cartões renderizados; `Home` volta à raiz; `Enter`/`Espaço` reenraíza (ou abre a pessoa no editor, quando ele está aberto).
+- `+`/`−` aproximam e afastam, `0` reenquadra a raiz. Atalhos são ignorados enquanto o foco está em campos e painéis.
+- Reenraizar ou mudar o limite de gerações anuncia a nova raiz e as contagens numa região `aria-live="polite"`.
+- O editor recebe o foco ao abrir e devolve o foco ao botão `✎ Editar` ao fechar com `Esc` ou `✕`. O foco e a seleção do campo são restaurados depois de cada autosave; `Ctrl/Cmd+Enter` salva sem sair do campo.
+- `prefers-reduced-motion: reduce` desliga voos de câmera, transições e scroll suave.
+
+## Desempenho
+
+Acima de 120 nós no layout, a árvore renderiza apenas os cartões e arestas próximos da viewport (com margem para o arraste). `will-change: transform` só é aplicado durante gestos e a câmera é aplicada em `requestAnimationFrame`. Com `?debug` na URL aparece um overlay com o tempo de render, cartões visíveis e zoom.
+
+`npm run bench` mede grafo e layout em famílias binárias sintéticas:
+
+| Documento | Pessoas | Uniões | Grafo | Layout | Cartões |
+| --- | --- | --- | --- | --- | --- |
+| Família 2k | 1.999 | 666 | ~2–3 ms | ~3–7 ms | 1.333 |
+| Família 500 | 499 | 166 | ~0,5 ms | ~1–4 ms | 333 |
+
+## Segurança
+
+- CSP restritiva em `index.html` (`default-src 'self'`, `script-src 'self'`, `object-src 'none'`, `base-uri 'none'`, `form-action 'none'`) e `Referrer-Policy: no-referrer`.
+- `public/_headers` replica a política e adiciona `X-Frame-Options`, `nosniff`, `Permissions-Policy` e `frame-ancestors` para hospedagens estáticas.
+- Todo texto do documento é renderizado com `textContent`; a importação rejeita `__proto__`, `constructor` e `prototype`.
+- A validação aplica limites defensivos de tamanho e quantidade antes de qualquer documento substituir a árvore.
+
+## Testes
+
+- `npm test` roda o Vitest apenas em `src/**/*.test.ts` (174 testes).
+- `npm run test:e2e` roda o Playwright em Chromium contra o Vite na porta 4173 (17 testes), cobrindo árvore, editor, acessibilidade com axe-core, segurança/importação e culling/performance.
+- Falhas geram trace e screenshot em `test-results/`, ignorado pelo Git.
+
 ## Decisões aprovadas
 
 | Tema | Decisão |
@@ -86,22 +122,29 @@ Detalhes em [`docs/decisions.md`](docs/decisions.md).
 
 ```text
 .
-├── index.html                             # entrada Vite
+├── index.html                             # entrada Vite + CSP
+├── playwright.config.ts                   # E2E em 127.0.0.1:4173
+├── vitest.config.ts                       # testes unitários em src/**/*.test.ts
+├── public/
+│   └── _headers                           # CSP e cabeçalhos de hospedagem
 ├── src/
 │   ├── main.ts                            # bootstrap, validação e seleção da fixture
 │   ├── style.css
 │   ├── domain/
 │   │   ├── types.ts                       # schema v1 em TypeScript
-│   │   ├── validate.ts                    # validação runtime e invariantes
+│   │   ├── validate.ts                    # validação runtime, invariantes e limites
 │   │   ├── graph.ts                       # índices, pais, filhos, irmãos, ancestrais
 │   │   └── relationship.ts                # BFS e rótulos de parentesco
 │   ├── layout/
-│   │   └── tree.ts                        # layout plano por geração e uniões
+│   │   ├── tree.ts                        # layout plano por geração e uniões
+│   │   └── large-family.test.ts           # layout com centenas de pessoas
 │   ├── editor/
 │   │   ├── ids.ts                         # ids legíveis e estáveis para novas entidades
 │   │   └── mutations.ts                   # mutações puras de pessoas, uniões e filhos
 │   ├── view/
-│   │   ├── tree-view.ts                   # câmera, cards, barras, HUD e re-root
+│   │   ├── tree-view.ts                   # câmera, cards, HUD, re-root, foco e culling
+│   │   ├── culling.ts                     # viewport do mundo e interseções
+│   │   ├── navigation.ts                  # navegação espacial entre cartões
 │   │   ├── editor-panel.ts                # formulários de edição e confirmações
 │   │   ├── data-panel.ts                  # importar, exportar e estado local
 │   │   └── format.ts                      # iniciais, datas e rótulos de união
@@ -116,11 +159,19 @@ Detalhes em [`docs/decisions.md`](docs/decisions.md).
 │       ├── migrate-v0.ts                  # migração linhagem única → uniões
 │       ├── family.json                    # seed migrado (25 pessoas, 8 uniões)
 │       └── load.ts                        # parse + validação
+├── e2e/
+│   ├── helpers.ts                         # seed, storage, axe e família sintética
+│   ├── tree.spec.ts
+│   ├── editor.spec.ts
+│   ├── accessibility.spec.ts
+│   ├── security.spec.ts
+│   └── performance.spec.ts
 ├── fixtures/
 │   ├── README.md
 │   └── family.fixture.json                # cenários sintéticos (2º casamento etc.)
 ├── scripts/
-│   └── generate-family.ts                 # regenera family.json
+│   ├── generate-family.ts                 # regenera family.json
+│   └── benchmark-layout.ts                # grafo/layout em famílias de 500 e 2k
 ├── docs/
 │   ├── decisions.md                       # ADRs
 │   └── schema.md                          # schema, invariantes e migração
@@ -128,6 +179,21 @@ Detalhes em [`docs/decisions.md`](docs/decisions.md).
 ├── Árvore Familiar — Zoom Infinito.md
 └── Árvore Familiar — Zoom Infinito.pdf
 ```
+
+## O que a Fase 5 entrega
+
+- Skip link, região focável da árvore e roving tabindex: um único ponto de parada por árvore.
+- Navegação espacial por setas entre cartões renderizados, com `Home` para voltar à raiz e câmera ajustada para o alvo.
+- Anúncio da raiz e das contagens em região `aria-live`; `aria-current` no cartão raiz e na união focada.
+- Editor como `role="region"` rotulada, foco inicial no alvo e devolução do foco ao botão ao fechar.
+- Foco e seleção restaurados depois do autosave; `Ctrl/Cmd+Enter` salva mantendo o cursor no campo; foco nunca cai no `<body>` após exclusão.
+- `prefers-reduced-motion` global e ajustes de contraste e de tamanho mínimo de rótulos.
+- Culling por viewport acima de 120 nós, `DocumentFragment`, câmera em `rAF` e `will-change` apenas durante gestos.
+- Overlay `?debug` com tempo de render, cartões visíveis e zoom; `npm run bench` para grafo e layout.
+- CSP via meta e `public/_headers`, `Referrer-Policy`, `X-Frame-Options`, `nosniff` e `Permissions-Policy`.
+- Limites defensivos no validador (`FAMILY_LIMITS`) e rejeição de chaves de protótipo na importação.
+- Suíte E2E com Playwright e axe-core: 17 cenários cobrindo árvore, editor, acessibilidade, segurança e performance.
+- 174 testes unitários e 17 testes E2E passando.
 
 ## O que a Fase 4 entrega
 
@@ -198,7 +264,7 @@ O schema completo e as invariantes estão em [`docs/schema.md`](docs/schema.md).
 | 2 | View tree por união, layout com filhos dinâmicos, re-root e HUD | Concluída |
 | 3 | Persistência (JSON local, localStorage/IndexedDB, import/export) | Concluída |
 | 4 | Editor mínimo de pessoas, uniões e filhos | Concluída |
-| 5 | Acessibilidade, performance, segurança e testes E2E | Pendente |
+| 5 | Acessibilidade, performance, segurança e testes E2E | Concluída |
 
 Cada fase termina com relatório e `git diff`, e só avança após confirmação.
 

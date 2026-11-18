@@ -8,6 +8,14 @@ import {
   type TreeLayout,
 } from '../layout/tree';
 import { childCountLabel, firstName, initials, lifespan, unionMeta } from './format';
+import {
+  edgeInRect,
+  nodeInRect,
+  unionRect,
+  viewportRect,
+  type WorldRect,
+} from './culling';
+import { findDirectionalNode, type NavigationDirection } from './navigation';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -16,6 +24,13 @@ const MAX_ZOOM = 2.6;
 const FIT_MAX_ZOOM = 1.35;
 const COMPACT_MAX = 0.62;
 const MEDIUM_MAX = 0.95;
+
+/** Acima disso, só os cartões próximos da viewport viram DOM. */
+const CULL_THRESHOLD = 120;
+/** Margem de tela mantida renderizada além da borda. */
+const CULL_MARGIN = 420;
+const WHEEL_SETTLE_MS = 180;
+const PERF_ENABLED = new URLSearchParams(window.location.search).has('debug');
 
 export type GenerationsSetting = number | 'all';
 
@@ -43,6 +58,7 @@ export interface TreeView {
   setEditing(editing: boolean): void;
   updateGraph(graph: FamilyGraph): void;
   getState(): TreeViewState;
+  focusEditButton(): void;
   home(): void;
   fit(): void;
   zoomBy(factor: number): void;
@@ -111,7 +127,13 @@ export function createTreeView(
   host.classList.add('tree-app');
   host.replaceChildren();
 
+  const skipLink = element('a', 'skip-link', 'Pular para a árvore');
+  skipLink.href = '#tree-stage';
+
   const stage = element('div', 'tree-stage');
+  stage.id = 'tree-stage';
+  stage.tabIndex = 0;
+  stage.setAttribute('role', 'region');
   stage.setAttribute('aria-label', 'Árvore familiar interativa');
 
   const dotsNear = element('div', 'tree-dots tree-dots--near');
@@ -173,10 +195,21 @@ export function createTreeView(
   const hint = element(
     'p',
     'tree-hint',
-    'Role para aproximar · arraste para mover · clique num cartão para reenraizar',
+    'Role para aproximar · arraste para mover · setas navegam entre cartões · clique num cartão para reenraizar',
   );
+  hint.id = 'tree-hint';
+  stage.setAttribute('aria-describedby', hint.id);
 
-  host.append(stage, hud, controls, hint);
+  const announcer = element('p', 'sr-only');
+  announcer.setAttribute('role', 'status');
+  announcer.setAttribute('aria-live', 'polite');
+  announcer.setAttribute('aria-atomic', 'true');
+
+  const perf = element('output', 'tree-perf');
+  perf.hidden = !PERF_ENABLED;
+  perf.setAttribute('aria-hidden', 'true');
+
+  host.append(skipLink, stage, hud, controls, hint, announcer, perf);
 
   let cam: Camera = { x: 0, y: 0, z: 0.5 };
   let targetZoom = cam.z;
@@ -190,6 +223,11 @@ export function createTreeView(
   let hiddenHint = false;
   let hintTimer = 0;
   let swapTimer = 0;
+  let settleTimer = 0;
+  let cullTimer = 0;
+  let cameraFrame = 0;
+  let navFocusId: PersonId | null = rootId;
+  let cameraMoving = false;
 
   const pointers = new Map<number, PointerPosition>();
   let dragDistance = 0;
@@ -249,7 +287,12 @@ export function createTreeView(
       cam.y = from.y + (to.y - from.y) * eased;
       targetZoom = cam.z;
 
-      if (progress >= 1) flight = null;
+      if (progress >= 1) {
+        flight = null;
+        cameraMoving = false;
+        setMoving(false);
+        scheduleCull();
+      }
       applyCamera();
       if (flight) requestFrame();
       return;
@@ -257,6 +300,7 @@ export function createTreeView(
 
     const distance = Math.log(targetZoom / cam.z);
     if (Math.abs(distance) > 0.0005) {
+      cameraMoving = true;
       const nextZoom = cam.z * Math.exp(distance * 0.22);
       const ratio = nextZoom / cam.z;
       cam.x = anchor.x - (anchor.x - cam.x) * ratio;
@@ -264,12 +308,20 @@ export function createTreeView(
       cam.z = nextZoom;
       applyCamera();
       requestFrame();
+    } else if (cameraMoving) {
+      cameraMoving = false;
+      setMoving(false);
+      scheduleCull(WHEEL_SETTLE_MS);
     }
   }
 
   function flyTo(target: Camera, duration = 650): void {
     flight = { from: { ...cam }, to: target, start: performance.now(), duration };
     targetZoom = target.z;
+    cameraMoving = true;
+    setMoving(true);
+    // Em árvores grandes, mantém renderizados os cartões do destino durante o voo.
+    if (layout.nodes.length > CULL_THRESHOLD) renderWorld();
     requestFrame();
   }
 
@@ -321,6 +373,7 @@ export function createTreeView(
       cam = { ...target };
       targetZoom = target.z;
       applyCamera();
+      scheduleCull();
     }
   }
 
@@ -335,6 +388,7 @@ export function createTreeView(
       cam = { ...target };
       targetZoom = target.z;
       applyCamera();
+      scheduleCull();
     }
   }
 
@@ -342,6 +396,7 @@ export function createTreeView(
     hideHint();
     hasInteracted = true;
     flight = null;
+    setMoving(true);
     targetZoom = clamp(targetZoom * factor, MIN_ZOOM, MAX_ZOOM);
     anchor = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     requestFrame();
@@ -367,6 +422,7 @@ export function createTreeView(
     if (!graph.persons.has(personId) || personId === rootId) return;
     hideHint();
     rootId = personId;
+    navFocusId = personId;
     options.onStateChange?.({ rootId, generations });
 
     swapTo(() => {
@@ -380,6 +436,8 @@ export function createTreeView(
       hasInteracted = false;
       anchor = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       applyCamera();
+      scheduleCull();
+      announceRoot();
     });
   }
 
@@ -390,9 +448,20 @@ export function createTreeView(
     generationsSelect.value = String(value);
     options.onStateChange?.({ rootId, generations });
     layout = buildLayout();
+    if (navFocusId && !layout.byId.has(navFocusId)) navFocusId = rootId;
     renderWorld();
     updateHud();
     focusRoot(false);
+    scheduleCull();
+    announceRoot();
+  }
+
+  function announceRoot(): void {
+    const root = graph.persons.get(rootId);
+    if (!root) return;
+    const people = layout.nodes.length === 1 ? '1 pessoa' : `${layout.nodes.length} pessoas`;
+    const unions = layout.unionCount === 1 ? '1 união' : `${layout.unionCount} uniões`;
+    announce(`Raiz: ${root.name}. ${people}, ${unions}.`);
   }
 
   function setEditing(value: boolean): void {
@@ -406,6 +475,7 @@ export function createTreeView(
   }
 
   function updateGraph(nextGraph: FamilyGraph): void {
+    const previousRoot = rootId;
     graph = nextGraph;
     metaRootId = graph.data.meta.rootPersonId;
 
@@ -416,11 +486,15 @@ export function createTreeView(
       if (fallback) rootId = fallback;
     }
 
+    if (!navFocusId || !graph.persons.has(navFocusId)) navFocusId = rootId;
+
     layout = buildLayout();
     renderWorld();
     updateHud();
     applyCamera();
+    scheduleCull();
     options.onStateChange?.({ rootId, generations });
+    if (rootId !== previousRoot) announceRoot();
   }
 
   function home(): void {
@@ -462,6 +536,24 @@ export function createTreeView(
   }
 
   function renderWorld(): void {
+    const started = PERF_ENABLED ? performance.now() : 0;
+    const shouldCull = layout.nodes.length > CULL_THRESHOLD;
+    const rect = shouldCull ? currentRenderRect() : null;
+    const nodes = rect ? layout.nodes.filter((node) => nodeInRect(node, rect)) : layout.nodes;
+    const edges = rect ? layout.edges.filter((edge) => edgeInRect(edge, rect)) : layout.edges;
+
+    const active = document.activeElement;
+    const previousFocus =
+      active instanceof HTMLElement && world.contains(active)
+        ? {
+            personId: active.closest<HTMLElement>('[data-person-id]')?.dataset.personId ?? null,
+            unionId: active.closest<HTMLElement>('[data-union-id]')?.dataset.unionId ?? null,
+          }
+        : null;
+    const focusedPersonId = previousFocus?.personId ?? null;
+    const focusedUnionId = previousFocus?.unionId ?? null;
+
+    const child = document.createDocumentFragment();
     world.replaceChildren();
     world.style.width = `${layout.width}px`;
     world.style.height = `${layout.height}px`;
@@ -472,9 +564,9 @@ export function createTreeView(
     svg.setAttribute('height', String(layout.height));
     svg.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`);
     svg.setAttribute('aria-hidden', 'true');
-    world.append(svg);
+    child.append(svg);
 
-    for (const node of layout.nodes) {
+    for (const node of nodes) {
       for (const union of node.unions) {
         appendPath(
           svg,
@@ -487,16 +579,101 @@ export function createTreeView(
       }
     }
 
-    for (const edge of layout.edges) {
+    for (const edge of edges) {
       appendPath(svg, edgePath(edge), edge.hue, edge.dashed);
     }
 
-    for (const node of layout.nodes) {
-      world.append(renderCard(node));
+    const cards = document.createDocumentFragment();
+    for (const node of nodes) {
+      if (node.personId === navFocusId) cards.append(renderCard(node, true));
+      else cards.append(renderCard(node, false));
       for (const union of node.unions) {
-        world.append(renderUnionBar(union));
+        cards.append(renderUnionBar(union));
       }
     }
+    world.append(child, cards);
+
+    if (focusedPersonId && focusedPersonId !== navFocusId) navFocusId = focusedPersonId;
+    if (navFocusId && !nodes.some((node) => node.personId === navFocusId)) {
+      const fallback = nodes.find((node) => node.personId === rootId) ?? nodes[0];
+      navFocusId = fallback?.personId ?? null;
+    }
+    updateRovingTabindex();
+
+    // Nunca deixa o foco cair no <body> quando o elemento focado foi removido.
+    if (previousFocus) {
+      const restored = focusedPersonId
+        ? focusPersonCard(focusedPersonId, true)
+        : focusedUnionId
+          ? focusUnionBar(focusedUnionId)
+          : false;
+      if (!restored) {
+        if (navFocusId) focusPersonCard(navFocusId, true);
+        else stage.focus({ preventScroll: true });
+      }
+    }
+
+    world.dataset.visibleCards = String(nodes.length);
+    world.dataset.totalCards = String(layout.nodes.length);
+
+    if (PERF_ENABLED && perf) {
+      const elapsed = performance.now() - started;
+      perf.textContent = `render ${elapsed.toFixed(1)} ms · ${nodes.length}/${layout.nodes.length} cartões · zoom ${cam.z.toFixed(2)}`;
+    }
+  }
+
+  /** Viewport atual, unida à do destino quando há uma animação de câmera. */
+  function currentRenderRect(): WorldRect {
+    const current = viewportRect(cam, window.innerWidth, window.innerHeight, CULL_MARGIN);
+    if (!flight) return current;
+    return unionRect(
+      current,
+      viewportRect(flight.to, window.innerWidth, window.innerHeight, CULL_MARGIN),
+    );
+  }
+
+  function scheduleCull(delay = 0): void {
+    window.clearTimeout(cullTimer);
+    cullTimer = window.setTimeout(() => {
+      cullTimer = 0;
+      renderWorld();
+    }, delay);
+  }
+
+  function setMoving(moving: boolean): void {
+    host.classList.toggle('is-moving', moving);
+  }
+
+  function scheduleCamera(): void {
+    if (cameraFrame) return;
+    cameraFrame = window.requestAnimationFrame(() => {
+      cameraFrame = 0;
+      applyCamera();
+    });
+  }
+
+  function announce(message: string): void {
+    announcer.textContent = '';
+    window.requestAnimationFrame(() => {
+      announcer.textContent = message;
+    });
+  }
+
+  function focusPersonCard(personId: PersonId, move: boolean): boolean {
+    const card = world.querySelector<HTMLElement>(
+      `[data-person-id="${CSS.escape(personId)}"]`,
+    );
+    if (!card) return false;
+    if (move) card.focus({ preventScroll: true });
+    return true;
+  }
+
+  function focusUnionBar(unionId: string): boolean {
+    const bar = world.querySelector<HTMLElement>(`[data-union-id="${CSS.escape(unionId)}"]`);
+    // Só devolve o foco se a barra continua sendo um controle acionável.
+    if (!bar || !bar.hasAttribute('role')) return false;
+    bar.focus({ preventScroll: true });
+    return true;
   }
 
   function appendPath(svg: SVGSVGElement, path: string, hue: number, dashed: boolean): void {
@@ -509,9 +686,13 @@ export function createTreeView(
     svg.append(elementPath);
   }
 
-  function renderCard(node: LayoutNode): HTMLElement {
+  function renderCard(node: LayoutNode, roving: boolean): HTMLElement {
     const person = personOf(node.personId);
     const isRoot = node.depth === 0;
+    const years = lifespan(person);
+    const details = [person.name, years, person.birthPlace, person.bio]
+      .filter(Boolean)
+      .join(' · ');
 
     const card = element('article', 'person-card');
     card.style.left = `${node.cardX}px`;
@@ -520,9 +701,8 @@ export function createTreeView(
     card.style.height = `${node.cardHeight}px`;
     card.style.setProperty('--hue', String(node.hue));
     card.dataset.personId = person.id;
-    card.title = [person.name, lifespan(person), person.birthPlace, person.bio]
-      .filter(Boolean)
-      .join(' · ');
+    card.tabIndex = roving ? 0 : -1;
+    card.title = details;
 
     const avatar = element('div', 'person-card__avatar', initials(person.name));
     avatar.setAttribute('aria-hidden', 'true');
@@ -530,7 +710,6 @@ export function createTreeView(
     const body = element('div', 'person-card__body');
     body.append(element('h2', 'person-card__name', person.name));
 
-    const years = lifespan(person);
     if (years) body.append(element('p', 'person-card__dates', years));
     if (person.birthPlace) body.append(element('p', 'person-card__place', person.birthPlace));
     if (person.bio) body.append(element('p', 'person-card__bio', person.bio));
@@ -541,36 +720,120 @@ export function createTreeView(
       card.classList.add('is-root');
       card.setAttribute('aria-current', 'true');
       card.append(element('span', 'person-card__badge', 'raiz'));
-
-      if (editing && options.onEditPerson) {
-        card.tabIndex = 0;
-        card.setAttribute('role', 'button');
-        card.setAttribute('aria-label', `Editar ${person.name}`);
-        card.title = `Editar ${person.name}`;
-        card.addEventListener('keydown', (event) => {
-          if (event.key !== 'Enter' && event.key !== ' ') return;
-          event.preventDefault();
-          options.onEditPerson?.(person.id);
-        });
-      }
-    } else {
-      card.tabIndex = 0;
-      card.setAttribute('role', 'button');
-      if (editing && options.onEditPerson) {
-        card.setAttribute('aria-label', `Editar ${person.name}`);
-        card.title = `Editar ${person.name}`;
-      } else {
-        card.setAttribute('aria-label', `Reenraizar a árvore em ${person.name}`);
-      }
-      card.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        if (editing && options.onEditPerson) options.onEditPerson(person.id);
-        else reRoot(person.id);
-      });
     }
 
+    if (editing && options.onEditPerson) {
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `Editar ${[person.name, years].filter(Boolean).join(', ')}`);
+      card.title = `Editar ${person.name}`;
+    } else if (isRoot) {
+      card.setAttribute(
+        'aria-label',
+        `${[person.name, years, person.birthPlace].filter(Boolean).join(', ')}, raiz da árvore`,
+      );
+    } else {
+      card.setAttribute('role', 'button');
+      card.setAttribute(
+        'aria-label',
+        `Reenraizar a árvore em ${person.name}${years ? `, ${years}` : ''}`,
+      );
+    }
+
+    card.addEventListener('focus', () => {
+      navFocusId = person.id;
+      updateRovingTabindex();
+    });
+
+    card.addEventListener('keydown', (event) => {
+      const direction = arrowDirection(event.key);
+      if (direction) {
+        event.preventDefault();
+        event.stopPropagation();
+        moveFocus(direction);
+        return;
+      }
+      if (event.key === 'Home') {
+        event.preventDefault();
+        event.stopPropagation();
+        navFocusId = rootId;
+        if (!focusPersonCard(rootId, true)) {
+          const first = world.querySelector<HTMLElement>('[data-person-id]');
+          if (first?.dataset.personId) {
+            navFocusId = first.dataset.personId;
+            focusPersonCard(navFocusId, true);
+          }
+        }
+        updateRovingTabindex();
+        ensureCardVisible(navFocusId);
+        return;
+      }
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      if (editing && options.onEditPerson) {
+        options.onEditPerson(person.id);
+      } else if (!isRoot) {
+        reRoot(person.id);
+      }
+    });
+
     return card;
+  }
+
+  function arrowDirection(key: string): NavigationDirection | null {
+    if (key === 'ArrowLeft') return 'left';
+    if (key === 'ArrowRight') return 'right';
+    if (key === 'ArrowUp') return 'up';
+    if (key === 'ArrowDown') return 'down';
+    return null;
+  }
+
+  function updateRovingTabindex(): void {
+    if (!navFocusId) return;
+    const cards = world.querySelectorAll<HTMLElement>('[data-person-id]');
+    for (const card of cards) {
+      card.tabIndex = card.dataset.personId === navFocusId ? 0 : -1;
+    }
+  }
+
+  function moveFocus(direction: NavigationDirection): void {
+    if (!navFocusId) return;
+    const rendered = new Set(
+      [...world.querySelectorAll<HTMLElement>('[data-person-id]')].map(
+        (card) => card.dataset.personId ?? '',
+      ),
+    );
+    const candidates = layout.nodes.filter((node) => rendered.has(node.personId));
+    const next = findDirectionalNode(candidates, navFocusId, direction);
+    if (!next) return;
+    navFocusId = next;
+    focusPersonCard(next, true);
+    updateRovingTabindex();
+    ensureCardVisible(next);
+  }
+
+  /** Move a câmera o mínimo necessário para o cartão não ficar sob as bordas. */
+  function ensureCardVisible(personId: PersonId): void {
+    const node = layout.byId.get(personId);
+    if (!node) return;
+    const margin = 72;
+    const left = node.cardX * cam.z + cam.x;
+    const top = node.cardY * cam.z + cam.y;
+    const right = left + node.cardWidth * cam.z;
+    const bottom = top + node.cardHeight * cam.z;
+
+    let dx = 0;
+    let dy = 0;
+    if (left < margin) dx = margin - left;
+    else if (right > window.innerWidth - margin) dx = window.innerWidth - margin - right;
+    if (top < margin) dy = margin - top;
+    else if (bottom > window.innerHeight - margin) dy = window.innerHeight - margin - bottom;
+
+    if (dx === 0 && dy === 0) return;
+    cam.x += dx;
+    cam.y += dy;
+    setMoving(true);
+    applyCamera();
+    scheduleCull(WHEEL_SETTLE_MS);
   }
 
   function renderUnionBar(union: LayoutUnion): HTMLElement {
@@ -669,6 +932,7 @@ export function createTreeView(
     flight = null;
     targetZoom = cam.z;
     hasInteracted = true;
+    setMoving(true);
     stage.classList.add('is-dragging');
     hideHint();
   }
@@ -691,7 +955,7 @@ export function createTreeView(
       cam.z = nextZoom;
       targetZoom = nextZoom;
       dragDistance += 100;
-      applyCamera();
+      scheduleCamera();
       return;
     }
 
@@ -704,7 +968,7 @@ export function createTreeView(
     cam.y += deltaY;
     targetZoom = cam.z;
     dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
-    applyCamera();
+    scheduleCamera();
   }
 
   function onPointerUp(event: PointerEvent): void {
@@ -712,6 +976,8 @@ export function createTreeView(
     if (pointers.size > 0) return;
 
     stage.classList.remove('is-dragging');
+    setMoving(false);
+    scheduleCull();
     if (event.type !== 'pointerup' || dragDistance >= 8) return;
 
     const target = document.elementFromPoint(event.clientX, event.clientY);
@@ -737,6 +1003,12 @@ export function createTreeView(
     hideHint();
     hasInteracted = true;
     flight = null;
+    setMoving(true);
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(() => {
+      setMoving(false);
+      scheduleCull();
+    }, WHEEL_SETTLE_MS);
 
     const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
     const factor = Math.exp(-delta * (event.ctrlKey ? 0.01 : 0.0016));
@@ -745,11 +1017,36 @@ export function createTreeView(
     requestFrame();
   }
 
+  /** No palco (após o skip link), as setas entram no primeiro cartão e navegam. */
+  function onStageKeyDown(event: KeyboardEvent): void {
+    if (event.target !== stage) return;
+    const direction = arrowDirection(event.key);
+    if (!direction && event.key !== 'Home') return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === 'Home') navFocusId = rootId;
+    if (!navFocusId) navFocusId = layout.nodes[0]?.personId ?? null;
+    if (!navFocusId) return;
+
+    if (!focusPersonCard(navFocusId, true)) {
+      const first = world.querySelector<HTMLElement>('[data-person-id]');
+      if (!first?.dataset.personId) return;
+      navFocusId = first.dataset.personId;
+      focusPersonCard(navFocusId, true);
+    }
+    if (direction) moveFocus(direction);
+    else {
+      updateRovingTabindex();
+      ensureCardVisible(navFocusId);
+    }
+  }
+
   function onKeyDown(event: KeyboardEvent): void {
     const target = event.target;
     if (
       target instanceof Element &&
-      target.closest('input, select, textarea, button')
+      target.closest('input, select, textarea, button, .editor, .data-panel')
     ) {
       return;
     }
@@ -776,6 +1073,7 @@ export function createTreeView(
       targetZoom = target.z;
     }
     applyCamera();
+    scheduleCull();
   }
 
   homeButton.addEventListener('click', home);
@@ -793,6 +1091,7 @@ export function createTreeView(
   stage.addEventListener('pointermove', onPointerMove);
   stage.addEventListener('pointerup', onPointerUp);
   stage.addEventListener('pointercancel', onPointerUp);
+  stage.addEventListener('keydown', onStageKeyDown);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('resize', onResize);
 
@@ -803,6 +1102,7 @@ export function createTreeView(
     cam = computeFocus();
     targetZoom = cam.z;
     applyCamera();
+    scheduleCull();
   } else {
     const target = computeFocus();
     const ratio = 0.9;
@@ -827,22 +1127,33 @@ export function createTreeView(
     setEditing,
     updateGraph,
     getState: () => ({ rootId, generations }),
+    focusEditButton: () => editButton.focus({ preventScroll: true }),
     home,
     fit: () => fit(true),
     zoomBy,
     destroy(): void {
       window.clearTimeout(hintTimer);
       window.clearTimeout(swapTimer);
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(cullTimer);
       if (frameRequest) window.cancelAnimationFrame(frameRequest);
+      if (cameraFrame) window.cancelAnimationFrame(cameraFrame);
       stage.removeEventListener('wheel', onWheel);
       stage.removeEventListener('pointerdown', onPointerDown);
       stage.removeEventListener('pointermove', onPointerMove);
       stage.removeEventListener('pointerup', onPointerUp);
       stage.removeEventListener('pointercancel', onPointerUp);
+      stage.removeEventListener('keydown', onStageKeyDown);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', onResize);
       host.replaceChildren();
-      host.classList.remove('tree-app', 'is-swapping', 'is-editing', 'is-editor-open');
+      host.classList.remove(
+        'tree-app',
+        'is-swapping',
+        'is-editing',
+        'is-editor-open',
+        'is-moving',
+      );
     },
   };
 }

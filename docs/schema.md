@@ -137,6 +137,23 @@ interface FamilyData {
 8. Pessoa filha de mais de uma união (restrição da v1).
 9. Ciclo de ancestralidade (A ancestral de B e B ancestral de A).
 10. `end` anterior a `start` quando ambos têm ano.
+11. Chave reservada (`__proto__`, `constructor`, `prototype`) em mapas do documento.
+12. Tamanho ou quantidade acima dos limites defensivos da seção seguinte.
+
+### Limites defensivos (Fase 5)
+
+Definidos em `FAMILY_LIMITS` (`src/domain/validate.ts`) e aplicados tanto na importação quanto nas mutações do editor:
+
+| Limite | Valor | Código de erro |
+| --- | --- | --- |
+| Pessoas por documento | 2.000 | `TOO_MANY_PEOPLE` |
+| Uniões por documento | 2.000 | `TOO_MANY_UNIONS` |
+| Filhos por união | 500 | `TOO_MANY_CHILDREN` |
+| Nome, título, id | 160 caracteres | `NAME_TOO_LONG`, `TITLE_TOO_LONG`, `*_ID_TOO_LONG` |
+| Textos (bio, local, observação, descrição) | 4.000 caracteres | `BIO_TOO_LONG`, `*_PLACE_TOO_LONG`, `*_NOTE_TOO_LONG`, `DESCRIPTION_TOO_LONG` |
+| Apelidos | 12 por pessoa, 120 caracteres cada | `TOO_MANY_ALIASES`, `ALIAS_TOO_LONG` |
+
+O limite de arquivo importado continua em **5 MB**, verificado antes do parse. Os limites existem para manter a árvore responsiva e não fazem parte da semântica genealógica: documentos maiores exigiriam paginação ou um adaptador de banco.
 
 ### Avisos (aceitar, mas sinalizar)
 
@@ -229,21 +246,24 @@ Fluxo de gravação:
 
 O editor não grava campos de UI no documento: seleção, formulários e confirmações vivem apenas no `editor-panel`. Em `?familia=fixture`, as mutações atualizam só a sessão e não chamam o store.
 
-## Estado da implementação (Fases 1–4)
+## Estado da implementação (Fases 1–5)
 
 | Módulo | Arquivo | Cobertura |
 | --- | --- | --- |
 | Tipos | `src/domain/types.ts` | Schema v1 |
-| Validação | `src/domain/validate.ts` | Referências, IDs, ciclos, união parental única, datas, avisos |
+| Validação | `src/domain/validate.ts` | Referências, IDs, ciclos, união parental única, datas, avisos e limites |
 | Grafo | `src/domain/graph.ts` | Índices, pais, filhos, cônjuges, irmãos full/half, descendentes, ancestrais |
 | Relacionamento | `src/domain/relationship.ts` | BFS, passos e rótulos comuns + fallback |
 | Migração | `src/data/migrate-v0.ts` | Seed legado → 25 pessoas, 8 uniões, 16 vínculos |
 | Dados gerados | `src/data/family.json` | Documento v1 versionado |
 | Layout | `src/layout/tree.ts` | Layout plano, uniões empilhadas, limites e arestas |
-| View | `src/view/tree-view.ts` | Câmera, LOD, cards, barras, HUD, re-root e modo de edição |
+| View | `src/view/tree-view.ts` | Câmera, LOD, cards, barras, HUD, re-root, foco e culling |
+| Culling | `src/view/culling.ts` | Viewport do mundo e interseções de nós/arestas |
+| Navegação | `src/view/navigation.ts` | Navegação espacial entre cartões |
 | Editor | `src/editor/` + `src/view/editor-panel.ts` | IDs, mutações puras, formulários e confirmações |
 | Persistência | `src/storage/` | Documento, preferências, importação, exportação e privacidade |
-| Testes | `src/**/*.test.ts` | 158 testes de domínio, grafo, relacionamento, layout, formatação, storage, IDs e mutações |
+| Segurança | `index.html` + `public/_headers` | CSP, referrer, frame, nosniff e permissions |
+| Testes | `src/**/*.test.ts` + `e2e/` | 174 unitários e 17 E2E (Playwright + axe-core) |
 
 ## Migração do seed original (v0 → v1)
 

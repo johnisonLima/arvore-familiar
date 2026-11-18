@@ -196,6 +196,73 @@ const actionButton = (
   return button;
 };
 
+const FOCUSABLE =
+  'input:not([type="hidden"]), select, textarea, button, [href], [tabindex]:not([tabindex="-1"])';
+
+interface FocusSnapshot {
+  unionId: string | null;
+  key: string;
+  type: string | null;
+  index: number;
+  start: number | null;
+  end: number | null;
+}
+
+const controlKey = (node: HTMLElement): string =>
+  node.getAttribute('name') ?? `text:${node.textContent?.trim() ?? ''}`;
+
+/** Registra o campo focado para reencontrá-lo depois de um re-render. */
+const captureFocus = (root: HTMLElement): FocusSnapshot | null => {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !root.contains(active)) return null;
+  const scope = active.closest<HTMLElement>('[data-union-id]') ?? root;
+  const key = controlKey(active);
+  const type = active instanceof HTMLInputElement ? active.type : null;
+  const group = [...scope.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (node) =>
+      controlKey(node) === key &&
+      (type === null || (node instanceof HTMLInputElement && node.type === type)),
+  );
+  const field = active as HTMLInputElement | HTMLTextAreaElement;
+  return {
+    unionId: scope.dataset.unionId ?? null,
+    key,
+    type,
+    index: Math.max(0, group.indexOf(active)),
+    start: typeof field.selectionStart === 'number' ? field.selectionStart : null,
+    end: typeof field.selectionEnd === 'number' ? field.selectionEnd : null,
+  };
+};
+
+const restoreFocus = (snapshot: FocusSnapshot | null, root: HTMLElement): boolean => {
+  if (!snapshot) return false;
+  const scope =
+    (snapshot.unionId
+      ? root.querySelector<HTMLElement>(`[data-union-id="${CSS.escape(snapshot.unionId)}"]`)
+      : null) ?? root;
+  const group = [...scope.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (node) =>
+      controlKey(node) === snapshot.key &&
+      (snapshot.type === null ||
+        (node instanceof HTMLInputElement && node.type === snapshot.type)),
+  );
+  const target = group[Math.min(snapshot.index, group.length - 1)];
+  if (!target) return false;
+
+  target.focus({ preventScroll: true });
+  if (
+    snapshot.start !== null &&
+    (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+  ) {
+    try {
+      target.setSelectionRange(snapshot.start, snapshot.end ?? snapshot.start);
+    } catch {
+      // Campos numéricos não aceitam seleção; o foco já foi restaurado.
+    }
+  }
+  return true;
+};
+
 export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
   let data: FamilyData | null = null;
   let personId: PersonId | null = null;
@@ -206,16 +273,18 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
   let panelOpen = false;
 
   const panel = element('aside', 'editor');
-  panel.setAttribute('aria-label', 'Editor de pessoas e uniões');
+  panel.id = 'family-editor';
+  panel.setAttribute('role', 'region');
+  panel.setAttribute('aria-labelledby', 'family-editor-title');
+  panel.setAttribute('aria-describedby', 'family-editor-hint');
   panel.tabIndex = -1;
   panel.hidden = true;
 
   const header = element('header', 'editor__head');
   const titleWrap = element('div');
-  titleWrap.append(
-    element('p', 'editor__eyebrow', 'Editar documento'),
-    element('h2', 'editor__title', 'Pessoas e uniões'),
-  );
+  const title = element('h2', 'editor__title', 'Pessoas e uniões');
+  title.id = 'family-editor-title';
+  titleWrap.append(element('p', 'editor__eyebrow', 'Editar documento'), title);
   const closeButton = element('button', 'editor__close', '✕');
   closeButton.type = 'button';
   closeButton.title = 'Fechar editor';
@@ -227,6 +296,7 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
     'editor__hint',
     'Clique num cartão ou numa barra de união da árvore para editar. Cada alteração é salva automaticamente.',
   );
+  hint.id = 'family-editor-hint';
 
   const status = element('p', 'editor__status', 'Pronto para editar.');
   status.setAttribute('aria-live', 'polite');
@@ -344,6 +414,7 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
 
   function render(): void {
     const scrollTop = scroll.scrollTop;
+    const snapshot = captureFocus(scroll);
     scroll.replaceChildren();
 
     if (!data) {
@@ -352,7 +423,24 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
     }
 
     scroll.append(renderPersonSection(), renderUnionSection());
+    for (const form of scroll.querySelectorAll('form')) {
+      form.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+        event.preventDefault();
+        form.requestSubmit();
+      });
+    }
     scroll.scrollTop = scrollTop;
+    if (snapshot && !restoreFocus(snapshot, scroll)) {
+      // A ação removeu o controle focado (ex.: exclusão); não deixa o foco no body.
+      focusInitial();
+    }
+  }
+
+  function focusConfirm(): void {
+    scroll
+      .querySelector<HTMLElement>('.editor__confirm .editor__danger')
+      ?.focus({ preventScroll: true });
   }
 
   function renderPersonSection(): HTMLElement {
@@ -473,6 +561,7 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
         actionButton('Excluir pessoa', 'editor__danger', () => {
           confirmDelete = 'person';
           render();
+          focusConfirm();
         }),
       );
     } else {
@@ -653,7 +742,11 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
 
   function renderUnionCard(union: Union): HTMLElement {
     const card = element('article', 'editor__union');
-    if (focusUnionId === union.id) card.classList.add('is-focused');
+    card.tabIndex = -1;
+    if (focusUnionId === union.id) {
+      card.classList.add('is-focused');
+      card.setAttribute('aria-current', 'true');
+    }
     card.dataset.unionId = union.id;
 
     const head = element('div', 'editor__union-head');
@@ -673,6 +766,7 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
       actionButton('Excluir', 'editor__danger editor__danger--small', () => {
         confirmDelete = union.id;
         render();
+        focusConfirm();
       }),
     );
     card.append(head);
@@ -920,6 +1014,27 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
     render();
   }
 
+  function focusInitial(): void {
+    if (focusUnionId) {
+      const card = scroll.querySelector<HTMLElement>(
+        `[data-union-id="${CSS.escape(focusUnionId)}"]`,
+      );
+      if (card) {
+        card.focus({ preventScroll: true });
+        card.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+    }
+    const selector = scroll.querySelector<HTMLElement>(
+      'select[aria-label="Pessoa em edição"]',
+    );
+    if (selector) {
+      selector.focus({ preventScroll: true });
+      return;
+    }
+    panel.focus({ preventScroll: true });
+  }
+
   function open(focus?: EditorFocus): void {
     if (!data) return;
     if (focus) applyFocus(focus);
@@ -936,7 +1051,7 @@ export function createEditorPanel(options: EditorPanelOptions): EditorPanel {
     panel.hidden = false;
     if (!wasOpen) {
       options.onOpenChange?.(true);
-      panel.focus();
+      focusInitial();
     }
   }
 

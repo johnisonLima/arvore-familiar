@@ -87,6 +87,39 @@ describe('validateFamilyData', () => {
     expect(codes(validateFamilyData(invalid))).toContain('UNSAFE_PHOTO');
   });
 
+  it('rejeita textos acima dos limites defensivos', () => {
+    const invalid = cloneFixture();
+    invalid.persons['p-ana'].name = 'A'.repeat(161);
+    invalid.persons['p-ana'].bio = 'B'.repeat(4001);
+    const result = validateFamilyData(invalid);
+    expect(codes(result)).toContain('NAME_TOO_LONG');
+    expect(codes(result)).toContain('BIO_TOO_LONG');
+  });
+
+  it('rejeita apelidos em excesso', () => {
+    const invalid = cloneFixture();
+    invalid.persons['p-ana'].aliases = Array.from({ length: 13 }, (_, index) => `apelido ${index}`);
+    expect(codes(validateFamilyData(invalid))).toContain('TOO_MANY_ALIASES');
+  });
+
+  it('rejeita documento com pessoas demais', () => {
+    const invalid = cloneFixture();
+    for (let index = 0; index < 2001; index += 1) {
+      const id = `p-extra-${index}`;
+      invalid.persons[id] = { id, name: `Pessoa ${index}` };
+    }
+    expect(codes(validateFamilyData(invalid))).toContain('TOO_MANY_PEOPLE');
+  });
+
+  it('rejeita união com filhos demais', () => {
+    const invalid = cloneFixture();
+    invalid.unions['u-gabriel-sofia'].children = Array.from(
+      { length: 501 },
+      (_, index) => `p-filho-${index}`,
+    );
+    expect(codes(validateFamilyData(invalid))).toContain('TOO_MANY_CHILDREN');
+  });
+
   it('avisa sobre mais de dois parceiros', () => {
     const invalid = cloneFixture();
     invalid.unions['u-gabriel-sofia'].partners.push('p-ana');

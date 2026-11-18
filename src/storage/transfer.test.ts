@@ -99,6 +99,21 @@ describe('parseFamilyDocument', () => {
     broken.schemaVersion = 99;
     expectImportError(() => parseFamilyDocument(JSON.stringify(broken)), 'document');
   });
+
+  it('rejeita chaves de protótipo no mapa de pessoas', () => {
+    const broken = cloneSeed() as unknown as { persons: Record<string, unknown> };
+    Object.defineProperty(broken.persons, '__proto__', {
+      value: { id: '__proto__', name: 'Intruso' },
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+    const error = expectImportError(
+      () => parseFamilyDocument(JSON.stringify(broken)),
+      'document',
+    );
+    expect(error.issues.map((issue) => issue.code)).toContain('DANGEROUS_KEY');
+  });
 });
 
 describe('readFamilyFile', () => {

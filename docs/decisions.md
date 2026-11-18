@@ -238,3 +238,71 @@ Data: 2026-11-17
 - A câmera só é reenquadrada por `⌂ Início`, `⤢`, re-root ou mudança de gerações.
 - Em telas largas o drawer ocupa a direita e os controles de câmera se deslocam; em telas estreitas o editor vira tela cheia e o seletor de pessoa substitui o clique no cartão.
 - O botão do HUD reflete o estado (`✎ Editar` / `✓ Editando`) e `Esc` fecha o painel.
+
+## ADR-017 — Acessibilidade sem transformar o editor em modal
+
+Data: 2026-11-17
+
+**Decisão:** a árvore é uma região focável (`#tree-stage`) descrita por um texto de ajuda, precedida de um skip link. Os cartões usam roving tabindex: só um cartão participa da ordem de tabulação e as setas, além de `Home`, movem o foco espacialmente entre os cartões renderizados. Reenraizar ou mudar o limite de gerações anuncia o novo estado numa região `role="status"` com `aria-live="polite"`. O drawer do editor é uma `role="region"` rotulada, recebe o foco no seletor de pessoa (ou na união selecionada) ao abrir e devolve o foco ao botão `✎ Editar` ao fechar.
+
+**Motivo:** transformar o drawer num modal bloquearia justamente a interação com a árvore, que é a forma natural de escolher o que editar. Um skip link e um único ponto de parada por árvore reduzem o custo de atravessar dezenas de cartões. Anunciar a raiz e as contagens dá contexto a quem não vê o novo enquadramento da câmera.
+
+**Consequências:**
+
+- A árvore continua clicável e focável enquanto o editor está aberto; não há armadilha de foco.
+- Setas, `Home`, `+`/`−` e `0` só são interceptados quando o foco não está em controles de formulário ou painéis.
+- Depois de um autosave, o foco e a seleção do campo são restaurados; se o controle deixou de existir (exclusão), o foco volta ao seletor de pessoa, nunca ao `<body>`.
+- `Ctrl/Cmd+Enter` envia o formulário focado sem tirar o cursor do campo.
+- `prefers-reduced-motion: reduce` desliga voos de câmera, transições e scroll suave.
+- O contraste de `--muted` e de rótulos pequenos foi elevado para atender AA; o texto mínimo dos rótulos subiu de 10 px para 11 px.
+- União focada usa `aria-current`, e o cartão da raiz usa `aria-current="true"` com rótulo explícito.
+
+## ADR-018 — Renderização limitada à viewport em árvores grandes
+
+Data: 2026-11-17
+
+**Decisão:** acima de 120 nós no layout, `renderWorld` converte a câmera num retângulo do mundo com margem de 420 px de tela e só cria DOM para os cartões e arestas que tocam esse retângulo. Durante uma animação de câmera, o retângulo é a união entre a posição atual e o destino. Fora do culling, a renderização usa `DocumentFragment`, a câmera é aplicada dentro de `requestAnimationFrame` e `will-change: transform` só existe enquanto a classe `is-moving` está ativa.
+
+**Motivo:** o layout já era rápido (benchmark de 2 mil pessoas em ~3–7 ms), mas milhares de cartões no DOM custam no estilo, na pintura e na memória. Culling por viewport mantém o custo proporcional ao que está na tela. Promover a camada de GPU permanentemente desperdiça memória e pode piorar a nitidez; ativá-la só durante gestos resolve a fluidez sem esse custo.
+
+**Consequências:**
+
+- `.tree-world` expõe `data-visible-cards` e `data-total-cards`; com `?debug` aparece um overlay com tempo de render, cartões e zoom.
+- O culling é recalculado no fim de gestos (roda, arraste, pinça, voo de câmera, resize), não a cada frame.
+- Navegação por teclado considera apenas cartões renderizados; `ensureCardVisible` move a câmera antes de focar um alvo fora da tela.
+- O foco é restaurado para o cartão anterior quando ele continua renderizado; se saiu da viewport, cai na raiz ou no primeiro cartão visível.
+- `npm run bench` mede grafo e layout numa família binária sintética de 500 e 2 mil pessoas.
+- A Fase 5 inclui teste de layout com centenas de pessoas e especificação E2E de culling em documento de ~800 nós.
+
+## ADR-019 — Segurança defensiva para um app estático
+
+Data: 2026-11-17
+
+**Decisão:** servir a aplicação com CSP restritiva via `<meta http-equiv>` e com `public/_headers` para hospedagens que aceitam cabeçalhos. A política padrão é `default-src 'self'`, `script-src 'self'`, `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` e `frame-ancestors 'none'` no header. O validador ganha limites de tamanho e quantidade (`FAMILY_LIMITS`) e a importação continua rejeitando chaves de protótipo.
+
+**Motivo:** o documento familiar pode vir de um arquivo externo e é renderizado como texto. Mesmo usando `textContent` em todos os campos, uma política de origem restritiva reduz o impacto de uma falha futura e impede execução de script inline injetado. Limites de tamanho protegem a aba contra documentos absurdos e completam o limite de 5 MB por arquivo.
+
+**Consequências:**
+
+- Estilos inline continuam permitidos (`style-src 'self' 'unsafe-inline'`) porque o layout posiciona cartões por `style.left/top`; scripts inline não são permitidos.
+- `Referrer-Policy: no-referrer` via meta e header; `X-Frame-Options: DENY`, `nosniff` e `Permissions-Policy` no arquivo de headers.
+- Limites atuais: 2.000 pessoas, 2.000 uniões, 500 filhos por união, 160 caracteres para nome/id/título, 4.000 para textos, 12 apelidos de até 120 caracteres.
+- Documentos acima dos limites são rejeitados com códigos estáveis (`TOO_MANY_PEOPLE`, `NAME_TOO_LONG`, `TOO_MANY_CHILDREN`, etc.).
+- A importação recusa `__proto__`, `constructor` e `prototype` em qualquer profundidade relevante, sem aplicar o documento parcialmente.
+- Ferramentas E2E que precisam injetar script usam o protocolo do navegador, não `<script>` inline, para não afrouxar a CSP.
+
+## ADR-020 — Testes E2E com Playwright e axe-core
+
+Data: 2026-11-17
+
+**Decisão:** adicionar uma suíte Playwright em `e2e/` cobrindo árvore, editor, acessibilidade, segurança e performance. O Vitest fica restrito a `src/**/*.test.ts` por `vitest.config.ts`, para não tentar executar specs do Playwright. O axe-core é uma dependência separada, injetada com `page.evaluate` e executada por tags `wcag2a`/`wcag2aa`. O Playwright é fixado em `1.64.0` e o servidor sobe em `127.0.0.1:4173` com `reuseExistingServer` fora de CI.
+
+**Motivo:** os testes unitários não cobrem foco, ordem de tabulação, câmera, download, `localStorage` real nem violações de acessibilidade no DOM montado. O Playwright roda o app de verdade; o axe-core encontra regressões de contraste, rótulo e estrutura sem revisão manual. Fixar a versão do Playwright evita baixar um Chromium novo a cada atualização e mantém o CI reproduzível; injetar o axe por protocolo respeita a CSP.
+
+**Consequências:**
+
+- Cada teste abre a app com `localStorage` limpo (`openApp`) e, quando precisa de dados, semeia o envelope diretamente.
+- `emulateMedia({ reducedMotion: 'reduce' })` torna a câmera determinística nos testes.
+- Os cenários cobrem: re-root persistido, skip link, navegação por setas, editor com autosave e restauração de foco, exclusão com confirmação, `Esc`, fixture apenas em sessão, importação hostil, CSP/XSS, exportação com e sem privados, culling e `will-change`.
+- Falhas geram trace, screenshot e contexto em `test-results/`, ignorado pelo Git.
+- `npm test` continua rápido e sem navegador; `npm run test:e2e` é o portão antes de cada fase.
