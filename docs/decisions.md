@@ -187,7 +187,7 @@ Data: 2026-11-17
 - A leitura valida o documento; cópia corrompida, formato desconhecido ou versão futura é ignorada com aviso e o exemplo embutido é aberto.
 - A gravação valida antes de escrever; erros de cota são mapeados para `quota` e o app continua apenas na sessão.
 - Sem `localStorage` (modo privado/política), um adaptador em memória mantém o app funcional e o painel indica que a cópia não sobrevive ao reload.
-- A importação grava automaticamente. Como ainda não há editor, essa é a única mutação persistida nesta fase; a Fase 4 reutiliza o mesmo store a cada edição.
+- A importação grava automaticamente. A partir da Fase 4, cada mutação do editor usa o mesmo store.
 - IndexedDB pode substituir o adaptador sem mudar o domínio nem a UI, se o documento crescer.
 
 ## ADR-014 — Importação/exportação portátil e privacidade
@@ -205,3 +205,36 @@ Data: 2026-11-17
 - Arrastar um `.json` para a tela usa o mesmo caminho de validação do seletor de arquivo.
 - A cópia local não é apagada quando uma importação falha.
 - O botão “Restaurar exemplo” limpa documento e preferências locais.
+
+## ADR-015 — Editor por mutações puras com autosave transacional
+
+Data: 2026-11-17
+
+**Decisão:** toda edição passa por pequenas funções puras em `src/editor/mutations.ts`, que clonam o documento, aplicam uma alteração e devolvem um novo `FamilyData`. O painel de edição não grava direto no store: a aplicação central valida o resultado, atualiza a árvore, carimba `meta.updatedAt` e só então persiste.
+
+**Motivo:** o documento é compartilhado por layout, exportação, importação e armazenamento. Mutar objetos no lugar criaria divergência entre a árvore renderizada e a cópia salva. Mutações puras são testáveis sem DOM e deixam um único ponto de commit para validação e persistência.
+
+**Consequências:**
+
+- Cada operação valida invariantes locais (parceiro existente, filho em uma única união, união sem parceiros) e o documento inteiro passa por `validateFamilyData`.
+- Em caso de erro, o documento em memória e a cópia local permanecem intactos; o painel mostra a mensagem e o formulário preserva os valores digitados.
+- Erros de cota ou armazenamento indisponível não bloqueiam a edição da sessão; o status indica que a alteração não sobreviveu ao reload.
+- IDs novos são derivados de nomes e recebem sufixo quando colidem; renomear não altera IDs existentes.
+- O editor não oferece desfazer global nesta fase; exclusões pedem confirmação inline.
+- Em `?familia=fixture`, o commit atualiza apenas a sessão, sem tocar no documento local.
+
+## ADR-016 — Modo de edição sem perder a câmera
+
+Data: 2026-11-17
+
+**Decisão:** o editor é um drawer acionado por `✎ Editar`. Enquanto está aberto, a árvore entra em modo de edição: clicar num cartão ou barra de união seleciona o alvo no editor em vez de reenraizar. A reconstrução após uma mutação usa `updateGraph` e mantém o `transform` da câmera.
+
+**Motivo:** reenraizar e editar competiriam pelo mesmo gesto. Um modo explícito preserva a navegação normal fora do editor e permite selecionar alvos direto na árvore. Recriar a câmera a cada gravação faria o usuário perder o contexto depois de cada campo salvo, o que é especialmente ruim em famílias grandes.
+
+**Consequências:**
+
+- Fora do modo de edição, cartões e barras continuam reenraizando como na Fase 2.
+- `TreeView` expõe `setEditing`, `updateGraph` e `getState`; a raiz cai para `meta.rootPersonId` (ou o primeiro id) se a pessoa exibida for excluída.
+- A câmera só é reenquadrada por `⌂ Início`, `⤢`, re-root ou mudança de gerações.
+- Em telas largas o drawer ocupa a direita e os controles de câmera se deslocam; em telas estreitas o editor vira tela cheia e o seletor de pessoa substitui o clique no cartão.
+- O botão do HUD reflete o estado (`✎ Editar` / `✓ Editando`) e `Esc` fecha o painel.

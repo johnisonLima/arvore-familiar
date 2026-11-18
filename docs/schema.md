@@ -203,7 +203,33 @@ O documento salvo no navegador não é gravado diretamente: ele vai dentro de um
 - Pessoas com `private: true` podem ser exportadas com `id`, `name`, `sex` e a própria flag, sem datas, local, biografia, foto ou apelidos.
 - Se o `localStorage` estiver indisponível, um adaptador em memória mantém a sessão; nada sobrevive ao recarregamento.
 
-## Estado da implementação (Fases 1–3)
+## Escrita e edição (Fase 4)
+
+O editor não altera o documento atual: cada operação é uma função pura que devolve um novo `FamilyData`.
+
+| Operação | Função | Regras estruturais |
+| --- | --- | --- |
+| Criar pessoa | `createPerson` | nome obrigatório; id `p-<slug>` com sufixo em colisão |
+| Atualizar pessoa | `updatePerson` | campos vazios removem a propriedade; ano deve ser inteiro positivo |
+| Excluir pessoa | `deletePerson` | remove a pessoa de parceiros e filhos; apaga uniões sem parceiros; troca `meta.rootPersonId` se necessário |
+| Criar união | `createUnion` | ao menos um parceiro; sem repetição; filho não pode ser parceiro nem filho de outra união |
+| Atualizar união | `updateUnion` | status, datas, local e observação; datas inválidas são rejeitadas |
+| Excluir união | `deleteUnion` | mantém pessoas e filhos no documento |
+| Adicionar/remover parceiro | `addPartner` / `removePartner` | a união nunca fica sem parceiros |
+| Adicionar/remover filho | `addChild` / `removeChild` | filho pertence a no máximo uma união |
+| Criar filho na união | `createChildInUnion` | cria a pessoa e o vínculo na mesma operação |
+
+Fluxo de gravação:
+
+1. A mutação pura produz o próximo documento.
+2. `validateFamilyData` roda sobre o resultado.
+3. A árvore em memória é reconstruída e a câmera é preservada.
+4. `meta.updatedAt` recebe o instante da gravação.
+5. O documento validado é salvo no envelope da Fase 3.
+
+O editor não grava campos de UI no documento: seleção, formulários e confirmações vivem apenas no `editor-panel`. Em `?familia=fixture`, as mutações atualizam só a sessão e não chamam o store.
+
+## Estado da implementação (Fases 1–4)
 
 | Módulo | Arquivo | Cobertura |
 | --- | --- | --- |
@@ -214,9 +240,10 @@ O documento salvo no navegador não é gravado diretamente: ele vai dentro de um
 | Migração | `src/data/migrate-v0.ts` | Seed legado → 25 pessoas, 8 uniões, 16 vínculos |
 | Dados gerados | `src/data/family.json` | Documento v1 versionado |
 | Layout | `src/layout/tree.ts` | Layout plano, uniões empilhadas, limites e arestas |
-| View | `src/view/tree-view.ts` | Câmera, LOD, cards, barras, HUD e re-root |
+| View | `src/view/tree-view.ts` | Câmera, LOD, cards, barras, HUD, re-root e modo de edição |
+| Editor | `src/editor/` + `src/view/editor-panel.ts` | IDs, mutações puras, formulários e confirmações |
 | Persistência | `src/storage/` | Documento, preferências, importação, exportação e privacidade |
-| Testes | `src/**/*.test.ts` | 122 testes de domínio, grafo, relacionamento, layout, formatação e storage |
+| Testes | `src/**/*.test.ts` | 158 testes de domínio, grafo, relacionamento, layout, formatação, storage, IDs e mutações |
 
 ## Migração do seed original (v0 → v1)
 

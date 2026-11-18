@@ -29,11 +29,20 @@ export interface TreeViewOptions {
   generations?: GenerationsSetting;
   /** Chamado quando o usuário reenraíza ou muda o limite de gerações. */
   onStateChange?: (state: TreeViewState) => void;
+  /** Abre/fecha o editor pelo botão do HUD, recebendo a raiz atual. */
+  onToggleEditor?: (rootId: PersonId) => void;
+  /** Clique num cartão enquanto o modo de edição está ativo. */
+  onEditPerson?: (personId: PersonId) => void;
+  /** Clique numa barra de união enquanto o modo de edição está ativo. */
+  onEditUnion?: (unionId: string) => void;
 }
 
 export interface TreeView {
   setRoot(personId: PersonId): void;
   setGenerations(value: GenerationsSetting): void;
+  setEditing(editing: boolean): void;
+  updateGraph(graph: FamilyGraph): void;
+  getState(): TreeViewState;
   home(): void;
   fit(): void;
   zoomBy(factor: number): void;
@@ -84,10 +93,12 @@ const edgePath = (edge: LayoutEdge): string => {
 
 export function createTreeView(
   host: HTMLElement,
-  graph: FamilyGraph,
+  initialGraph: FamilyGraph,
   options: TreeViewOptions = {},
 ): TreeView {
-  const metaRootId = graph.data.meta.rootPersonId;
+  let graph = initialGraph;
+  let metaRootId = graph.data.meta.rootPersonId;
+  let editing = false;
   let rootId =
     options.rootId && graph.persons.has(options.rootId) ? options.rootId : metaRootId;
   let generations: GenerationsSetting = options.generations ?? 'all';
@@ -135,7 +146,13 @@ export function createTreeView(
   generationsSelect.value = String(generations);
   generationsLabel.append(generationsSelect);
 
-  actions.append(homeButton, parentsWrap, generationsLabel);
+  const editButton = element('button', 'hud__button hud__button--edit', '✎ Editar');
+  editButton.type = 'button';
+  editButton.title = 'Editar pessoas, uniões e filhos';
+  editButton.setAttribute('aria-pressed', 'false');
+  editButton.hidden = !options.onToggleEditor;
+
+  actions.append(homeButton, parentsWrap, editButton, generationsLabel);
   hud.append(eyebrow, name, meta, stats, actions);
 
   const controls = element('div', 'tree-controls');
@@ -378,6 +395,34 @@ export function createTreeView(
     focusRoot(false);
   }
 
+  function setEditing(value: boolean): void {
+    if (editing === value) return;
+    editing = value;
+    host.classList.toggle('is-editing', editing);
+    editButton.textContent = editing ? '✓ Editando' : '✎ Editar';
+    editButton.setAttribute('aria-pressed', String(editing));
+    renderWorld();
+    updateHud();
+  }
+
+  function updateGraph(nextGraph: FamilyGraph): void {
+    graph = nextGraph;
+    metaRootId = graph.data.meta.rootPersonId;
+
+    if (!graph.persons.has(rootId)) {
+      const fallback = graph.persons.has(metaRootId)
+        ? metaRootId
+        : [...graph.persons.keys()].sort()[0];
+      if (fallback) rootId = fallback;
+    }
+
+    layout = buildLayout();
+    renderWorld();
+    updateHud();
+    applyCamera();
+    options.onStateChange?.({ rootId, generations });
+  }
+
   function home(): void {
     if (rootId !== metaRootId) reRoot(metaRootId);
     else focusRoot(true);
@@ -496,14 +541,32 @@ export function createTreeView(
       card.classList.add('is-root');
       card.setAttribute('aria-current', 'true');
       card.append(element('span', 'person-card__badge', 'raiz'));
+
+      if (editing && options.onEditPerson) {
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', `Editar ${person.name}`);
+        card.title = `Editar ${person.name}`;
+        card.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          options.onEditPerson?.(person.id);
+        });
+      }
     } else {
       card.tabIndex = 0;
       card.setAttribute('role', 'button');
-      card.setAttribute('aria-label', `Reenraizar a árvore em ${person.name}`);
+      if (editing && options.onEditPerson) {
+        card.setAttribute('aria-label', `Editar ${person.name}`);
+        card.title = `Editar ${person.name}`;
+      } else {
+        card.setAttribute('aria-label', `Reenraizar a árvore em ${person.name}`);
+      }
       card.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        reRoot(person.id);
+        if (editing && options.onEditPerson) options.onEditPerson(person.id);
+        else reRoot(person.id);
       });
     }
 
@@ -537,7 +600,17 @@ export function createTreeView(
     }
 
     const onlyPartner = union.partnerIds.length === 1 ? union.partnerIds[0] : undefined;
-    if (onlyPartner) {
+    if (editing && options.onEditUnion) {
+      bar.dataset.editUnion = union.unionId;
+      bar.tabIndex = 0;
+      bar.setAttribute('role', 'button');
+      bar.setAttribute('aria-label', `Editar união de ${names.textContent || 'familiares'}`);
+      bar.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        options.onEditUnion?.(union.unionId);
+      });
+    } else if (onlyPartner) {
       const partner = personOf(onlyPartner);
       bar.dataset.reroot = partner.id;
       bar.tabIndex = 0;
@@ -642,6 +715,17 @@ export function createTreeView(
     if (event.type !== 'pointerup' || dragDistance >= 8) return;
 
     const target = document.elementFromPoint(event.clientX, event.clientY);
+    const editUnionTarget = target?.closest<HTMLElement>('[data-edit-union]');
+    const editPersonTarget = target?.closest<HTMLElement>('[data-person-id]');
+    if (editing) {
+      if (editUnionTarget?.dataset.editUnion) {
+        options.onEditUnion?.(editUnionTarget.dataset.editUnion);
+      } else if (editPersonTarget?.dataset.personId) {
+        options.onEditPerson?.(editPersonTarget.dataset.personId);
+      }
+      return;
+    }
+
     const rerootTarget = target?.closest<HTMLElement>('[data-reroot]');
     const cardTarget = target?.closest<HTMLElement>('[data-person-id]');
     const personId = rerootTarget?.dataset.reroot ?? cardTarget?.dataset.personId;
@@ -662,8 +746,13 @@ export function createTreeView(
   }
 
   function onKeyDown(event: KeyboardEvent): void {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('input, select, textarea, button')) return;
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest('input, select, textarea, button')
+    ) {
+      return;
+    }
 
     if (event.key === '+' || event.key === '=') {
       event.preventDefault();
@@ -690,6 +779,7 @@ export function createTreeView(
   }
 
   homeButton.addEventListener('click', home);
+  editButton.addEventListener('click', () => options.onToggleEditor?.(rootId));
   zoomInButton.addEventListener('click', () => zoomBy(1.45));
   zoomOutButton.addEventListener('click', () => zoomBy(1 / 1.45));
   fitButton.addEventListener('click', () => fit(true));
@@ -734,6 +824,9 @@ export function createTreeView(
   return {
     setRoot: reRoot,
     setGenerations,
+    setEditing,
+    updateGraph,
+    getState: () => ({ rootId, generations }),
     home,
     fit: () => fit(true),
     zoomBy,
@@ -749,7 +842,7 @@ export function createTreeView(
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', onResize);
       host.replaceChildren();
-      host.classList.remove('tree-app', 'is-swapping');
+      host.classList.remove('tree-app', 'is-swapping', 'is-editing', 'is-editor-open');
     },
   };
 }

@@ -4,7 +4,7 @@ Protótipo de árvore genealógica com zoom semântico, domínio normalizado de 
 
 ## Status
 
-**Fase 3 concluída.** A árvore tem layout plano por geração, câmera com zoom semântico, re-root e HUD. O documento pode ser importado/exportado como JSON e é salvo no `localStorage` com envelope versionado; a última raiz e o limite de gerações também são lembrados. Um painel `▤ Dados` concentra importação, exportação, restauração do exemplo e o estado da cópia local.
+**Fase 4 concluída.** A árvore tem layout plano por geração, câmera com zoom semântico, re-root e HUD. O documento pode ser importado/exportado como JSON e é salvo no `localStorage` com envelope versionado; a última raiz e o limite de gerações também são lembrados. Um painel `▤ Dados` concentra importação, exportação, restauração do exemplo e o estado da cópia local. O botão `✎ Editar` abre um editor de pessoas, uniões e filhos com gravação automática a cada alteração.
 
 ## Como rodar
 
@@ -13,7 +13,7 @@ Requer Node.js 20 ou superior.
 ```bash
 npm install
 npm run dev        # servidor Vite
-npm test           # testes de domínio, layout, formatação e persistência
+npm test           # testes de domínio, layout, formatação, persistência e edição
 npm run build      # typecheck + build estático
 npm run generate:data  # regenera src/data/family.json a partir do seed legado
 ```
@@ -47,7 +47,27 @@ Limites desta fase:
 - Importação de até **5 MB** por arquivo.
 - Apenas `localStorage`; um adaptador IndexedDB pode entrar atrás da mesma interface quando fotos ou documentos maiores justificarem.
 - Se o armazenamento estiver bloqueado ou a cota estourar, o app continua na sessão e o painel indica que a cópia não sobreviverá ao recarregamento.
-- A edição ainda não existe; a gravação automática acontece na importação. Na Fase 4, cada alteração do editor passa a usar o mesmo store.
+- O editor grava uma alteração por vez, sempre validada antes de substituir o documento. Não há desfazer global nesta fase.
+- Em `?familia=fixture`, o editor funciona apenas na sessão: o modo de teste não grava documento nem preferências.
+
+## Edição
+
+O botão `✎ Editar` no HUD abre o editor no lado direito (tela cheia em telas estreitas). Enquanto ele está aberto:
+
+- clicar num cartão seleciona a pessoa para edição em vez de reenraizar;
+- clicar numa barra de união seleciona diretamente a união;
+- o seletor de pessoa permite editar qualquer integrante do documento;
+- `Esc` ou o botão `✕` fecha o editor.
+
+O editor cobre três blocos:
+
+| Bloco | Operações |
+| --- | --- |
+| Pessoa | criar, renomear, sexo, anos de nascimento/falecimento, local, biografia, marcação de privacidade e exclusão |
+| União | criar, situação, início/fim, local, observação, incluir/remover parceiros e excluir |
+| Filhos | incluir pessoa existente, criar filho na união, remover filho |
+
+Cada operação passa por mutações puras em `src/editor/mutations.ts`, é validada com `validateFamilyData` e só então substitui o documento em memória, atualiza a árvore e grava no `localStorage`. A câmera não é reenquadrada durante a edição. Excluir uma pessoa remove seus vínculos; uniões que ficarem sem parceiros são removidas e os filhos continuam no documento.
 
 ## Decisões aprovadas
 
@@ -77,8 +97,12 @@ Detalhes em [`docs/decisions.md`](docs/decisions.md).
 │   │   └── relationship.ts                # BFS e rótulos de parentesco
 │   ├── layout/
 │   │   └── tree.ts                        # layout plano por geração e uniões
+│   ├── editor/
+│   │   ├── ids.ts                         # ids legíveis e estáveis para novas entidades
+│   │   └── mutations.ts                   # mutações puras de pessoas, uniões e filhos
 │   ├── view/
 │   │   ├── tree-view.ts                   # câmera, cards, barras, HUD e re-root
+│   │   ├── editor-panel.ts                # formulários de edição e confirmações
 │   │   ├── data-panel.ts                  # importar, exportar e estado local
 │   │   └── format.ts                      # iniciais, datas e rótulos de união
 │   ├── storage/
@@ -104,6 +128,20 @@ Detalhes em [`docs/decisions.md`](docs/decisions.md).
 ├── Árvore Familiar — Zoom Infinito.md
 └── Árvore Familiar — Zoom Infinito.pdf
 ```
+
+## O que a Fase 4 entrega
+
+- Mutações puras e testáveis para criar, atualizar e excluir pessoas, uniões, parceiros e filhos.
+- IDs legíveis derivados de nomes (`p-...`, `u-...`), com sufixo numérico em caso de colisão.
+- Editor em drawer com seletor de pessoa, formulário de pessoa, cartões de união e criação de filho direto na união.
+- Modo de edição na árvore: cartões e barras de união selecionam o alvo no editor sem reenraizar.
+- Autosave transacional: mutação → validação → atualização da árvore → gravação no store da Fase 3.
+- Câmera preservada em cada alteração; a árvore é reconstruída sob o mesmo `transform`.
+- `meta.updatedAt` atualizado em toda gravação.
+- `private` editável e respeitado pela exportação sem privados.
+- Exclusões com confirmação inline; remoção de pessoa limpa vínculos, remove uniões sem parceiros e troca a raiz se necessário.
+- Fixture editável apenas em memória, sem contaminar a cópia local.
+- 158 testes passando (domínio, layout, formatação, storage, transferência, IDs e mutações).
 
 ## O que a Fase 3 entrega
 
@@ -159,7 +197,7 @@ O schema completo e as invariantes estão em [`docs/schema.md`](docs/schema.md).
 | 1 | Domínio normalizado, migração do seed, índices, consultas e testes | Concluída |
 | 2 | View tree por união, layout com filhos dinâmicos, re-root e HUD | Concluída |
 | 3 | Persistência (JSON local, localStorage/IndexedDB, import/export) | Concluída |
-| 4 | Editor mínimo de pessoas, uniões e filhos | Pendente |
+| 4 | Editor mínimo de pessoas, uniões e filhos | Concluída |
 | 5 | Acessibilidade, performance, segurança e testes E2E | Pendente |
 
 Cada fase termina com relatório e `git diff`, e só avança após confirmação.

@@ -3,7 +3,7 @@ import fixtureJson from '../fixtures/family.fixture.json';
 import familyJson from './data/family.json';
 import type { FamilyData } from './domain/types';
 import { loadFamilyData } from './data/load';
-import { buildFamilyGraph } from './domain/graph';
+import { buildFamilyGraph, type FamilyGraph } from './domain/graph';
 import { createDataPanel, type DataAction, type DataStatus } from './view/data-panel';
 import {
   createTreeView,
@@ -14,6 +14,8 @@ import { createFamilyDocumentStore } from './storage/document-store';
 import { browserLocalStorage, resolveBrowserStorage } from './storage/key-value';
 import { createViewStore } from './storage/view-store';
 import { downloadText } from './storage/download';
+import { validateFamilyData } from './domain/validate';
+import { createEditorPanel, type EditorFocus } from './view/editor-panel';
 import {
   exportFileName,
   FamilyImportError,
@@ -37,6 +39,15 @@ const viewStore = createViewStore(resolvedStorage.storage, resolvedStorage.persi
 let current: FamilyData | null = null;
 let view: TreeView | null = null;
 let importing = false;
+
+const editor = createEditorPanel({
+  onApply: (data, focus) => applyDocument(data, focus),
+  onOpenChange: (open) => {
+    view?.setEditing(open);
+    app.classList.toggle('is-editor-open', open);
+    document.body.classList.toggle('is-editor-open', open);
+  },
+});
 
 const panel = createDataPanel({
   onAction: (action, file) => {
@@ -63,6 +74,75 @@ interface RenderOptions {
   trackView?: boolean;
 }
 
+function applyDocument(next: FamilyData, focus?: EditorFocus): boolean {
+  const updated: FamilyData = {
+    ...next,
+    meta: { ...next.meta, updatedAt: new Date().toISOString() },
+  };
+
+  const validation = validateFamilyData(updated);
+  if (!validation.ok) {
+    editor.showError(
+      'Documento inválido',
+      validation.errors.map((issue) => `${issue.path}: ${issue.message}`),
+    );
+    return false;
+  }
+
+  let graph: FamilyGraph;
+  try {
+    graph = buildFamilyGraph(updated);
+  } catch (error) {
+    editor.showError('Não foi possível reconstruir a árvore', [errorMessage(error)]);
+    return false;
+  }
+
+  current = updated;
+  view?.updateGraph(graph);
+  editor.setDocument(updated, focus);
+
+  if (fixtureMode) {
+    editor.setStatus('Alteração aplicada na fixture. O modo de teste não grava no armazenamento local.', 'warning');
+    panel.setStatus({
+      tone: 'session',
+      title: 'Fixture alterada nesta sessão',
+      detail: 'Use ?familia=fixture apenas para testes; nada é salvo.',
+    });
+    return true;
+  }
+
+  const saved = documentStore.save(updated);
+
+  if (saved.ok && documentStore.persistent) {
+    const moment = formatMoment(saved.savedAt);
+    editor.setStatus(`Alteração salva${moment ? ` em ${moment}` : ''}.`, 'ok');
+    panel.setStatus({
+      tone: 'local',
+      title: 'Alterações salvas',
+      detail: moment ? `Atualizado em ${moment}.` : 'Documento salvo neste navegador.',
+    });
+  } else if (saved.ok) {
+    editor.setStatus(
+      'Alteração aplicada nesta sessão. O armazenamento local não está disponível; recarregar perde a mudança.',
+      'warning',
+    );
+    panel.setStatus({
+      tone: 'session',
+      title: 'Alterações apenas nesta sessão',
+      detail: 'O armazenamento local não está disponível.',
+    });
+  } else {
+    editor.setStatus(`Alteração aplicada, mas não foi salva: ${saved.message}`, 'warning');
+    panel.setStatus({
+      tone: 'session',
+      title: 'Alteração não salva',
+      detail: saved.message,
+    });
+  }
+
+  return true;
+}
+
 function render(data: FamilyData, options: RenderOptions = {}): void {
   const graph = buildFamilyGraph(data);
   current = data;
@@ -79,7 +159,16 @@ function render(data: FamilyData, options: RenderOptions = {}): void {
               generations: state.generations,
             });
           },
+    onToggleEditor: (rootId) => {
+      if (editor.isOpen()) editor.close();
+      else editor.open({ personId: rootId });
+    },
+    onEditPerson: (personId) => editor.open({ personId }),
+    onEditUnion: (unionId) => editor.open({ unionId }),
   });
+
+  editor.setDocument(data, { personId: view.getState().rootId });
+  if (editor.isOpen()) view.setEditing(true);
 }
 
 function exportDocument(redact: boolean): void {
@@ -121,6 +210,7 @@ async function importDocument(file: File): Promise<void> {
   try {
     const data = await readFamilyFile(file);
     leaveFixtureMode();
+    editor.close();
     const saved = documentStore.save(data);
     viewStore.clear();
     render(data, { generations: 'all' });
@@ -162,6 +252,7 @@ function resetToExample(): void {
   try {
     documentStore.clear();
     viewStore.clear();
+    editor.close();
     render(loadFamilyData(fixtureMode ? fixtureJson : familyJson), { generations: 'all' });
     panel.setStatus({
       tone: 'session',
@@ -291,5 +382,6 @@ try {
   pre.className = 'load-error';
   pre.textContent = errorMessage(error);
   app.replaceChildren(pre);
+  editor.destroy();
   panel.destroy();
 }
