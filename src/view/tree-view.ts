@@ -118,7 +118,7 @@ export function createTreeView(
   let rootId =
     options.rootId && graph.persons.has(options.rootId) ? options.rootId : metaRootId;
   let generations: GenerationsSetting = options.generations ?? 'all';
-  let layout: TreeLayout = buildLayout();
+  let layout: TreeLayout;
 
   const prefersReducedMotion =
     typeof window.matchMedia === 'function' &&
@@ -148,6 +148,10 @@ export function createTreeView(
   const meta = element('p', 'hud__meta');
   const stats = element('p', 'hud__stats');
   const actions = element('div', 'hud__actions');
+  const moreMenu = element('details', 'hud__more');
+  moreMenu.open = !window.matchMedia('(max-width: 640px)').matches;
+  const moreSummary = element('summary', 'hud__more-summary', 'Mais');
+  const moreActions = element('div', 'hud__more-actions');
 
   const homeButton = element('button', 'hud__button', '⌂ Início');
   homeButton.type = 'button';
@@ -174,7 +178,19 @@ export function createTreeView(
   editButton.setAttribute('aria-pressed', 'false');
   editButton.hidden = !options.onToggleEditor;
 
-  actions.append(homeButton, parentsWrap, editButton, generationsLabel);
+  const viewModeLabel = element('label', 'hud__label hud__view-mode', 'Visualização');
+  const viewModeSelect = element('select', 'hud__select');
+  for (const [value, label] of [['person', 'Pessoa'], ['relationship', 'Relacionamento']]) {
+    const option = element('option', undefined, label);
+    option.value = value;
+    viewModeSelect.append(option);
+  }
+  viewModeLabel.append(viewModeSelect);
+  const primaryControls = element('div', 'hud__primary-actions');
+  primaryControls.append(viewModeLabel);
+  moreActions.append(homeButton, parentsWrap, editButton, generationsLabel);
+  moreMenu.append(moreSummary, moreActions);
+  actions.append(primaryControls, moreMenu);
   hud.append(eyebrow, name, meta, stats, actions);
 
   const controls = element('div', 'tree-controls');
@@ -228,6 +244,9 @@ export function createTreeView(
   let cameraFrame = 0;
   let navFocusId: PersonId | null = rootId;
   let cameraMoving = false;
+  let relationshipView = false;
+  const collapsedUnions = new Set<string>();
+  layout = buildLayout();
 
   const pointers = new Map<number, PointerPosition>();
   let dragDistance = 0;
@@ -235,6 +254,7 @@ export function createTreeView(
   function buildLayout(): TreeLayout {
     return buildTreeLayout(graph, rootId, {
       maxGenerations: generations === 'all' ? undefined : generations,
+      collapsedUnions,
     });
   }
 
@@ -846,6 +866,7 @@ export function createTreeView(
   function renderUnionBar(union: LayoutUnion): HTMLElement {
     const unionData = unionOf(union.unionId);
     const bar = element('div', 'union-bar');
+    bar.classList.toggle('is-relationship-view', relationshipView);
     bar.style.left = `${union.barX}px`;
     bar.style.top = `${union.barY}px`;
     bar.style.width = `${union.barWidth}px`;
@@ -880,6 +901,18 @@ export function createTreeView(
         event.preventDefault();
         options.onEditUnion?.(union.unionId);
       });
+    } else if (union.childIds.length > 0 && (union.expanded || collapsedUnions.has(union.unionId))) {
+      bar.dataset.toggleUnion = union.unionId;
+      bar.tabIndex = 0;
+      bar.setAttribute('role', 'button');
+      const collapsed = collapsedUnions.has(union.unionId) || !union.expanded;
+      bar.setAttribute('aria-expanded', String(!collapsed));
+      bar.setAttribute('aria-label', `${collapsed ? 'Expandir' : 'Recolher'} ${childCountLabel(union.childIds.length)} de ${names.textContent || 'esta relação'}`);
+      bar.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        toggleUnionChildren(union.unionId);
+      });
     } else if (onlyPartner) {
       const partner = personOf(onlyPartner);
       bar.dataset.reroot = partner.id;
@@ -913,12 +946,23 @@ export function createTreeView(
       union.hiddenChildCount > 0 && union.expanded
         ? `${union.hiddenChildCount} não exibidos`
         : '',
+      collapsedUnions.has(union.unionId) ? 'Toque para expandir os filhos' : '',
     ]
       .filter(Boolean)
       .join(' · ');
 
     bar.append(heart, names, aside);
     return bar;
+  }
+
+  function toggleUnionChildren(unionId: string): void {
+    if (collapsedUnions.has(unionId)) collapsedUnions.delete(unionId);
+    else collapsedUnions.add(unionId);
+    layout = buildLayout();
+    renderWorld();
+    updateHud();
+    scheduleCull();
+    options.onStateChange?.({ rootId, generations });
   }
 
   function pinch(): { distance: number; x: number; y: number } | null {
@@ -1000,6 +1044,11 @@ export function createTreeView(
     }
 
     const rerootTarget = target?.closest<HTMLElement>('[data-reroot]');
+    const toggleUnionTarget = target?.closest<HTMLElement>('[data-toggle-union]');
+    if (toggleUnionTarget?.dataset.toggleUnion) {
+      toggleUnionChildren(toggleUnionTarget.dataset.toggleUnion);
+      return;
+    }
     const cardTarget = target?.closest<HTMLElement>('[data-person-id]');
     const personId = rerootTarget?.dataset.reroot ?? cardTarget?.dataset.personId;
     if (personId) reRoot(personId);
@@ -1088,6 +1137,14 @@ export function createTreeView(
   zoomInButton.addEventListener('click', () => zoomBy(1.45));
   zoomOutButton.addEventListener('click', () => zoomBy(1 / 1.45));
   fitButton.addEventListener('click', () => fit(true));
+  const mobileHudQuery = window.matchMedia('(max-width: 640px)');
+  const syncHudMenu = (): void => { moreMenu.open = !mobileHudQuery.matches; };
+  mobileHudQuery.addEventListener('change', syncHudMenu);
+  viewModeSelect.addEventListener('change', () => {
+    relationshipView = viewModeSelect.value === 'relationship';
+    host.classList.toggle('is-relationship-view', relationshipView);
+    renderWorld();
+  });
   generationsSelect.addEventListener('change', () => {
     const raw = generationsSelect.value;
     setGenerations(raw === 'all' ? 'all' : Number(raw));
@@ -1153,6 +1210,7 @@ export function createTreeView(
       stage.removeEventListener('keydown', onStageKeyDown);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', onResize);
+      mobileHudQuery.removeEventListener('change', syncHudMenu);
       host.replaceChildren();
       host.classList.remove(
         'tree-app',

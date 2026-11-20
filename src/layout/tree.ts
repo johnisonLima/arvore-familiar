@@ -25,6 +25,8 @@ export interface TreeLayoutOptions {
   groupGap?: number;
   rowGap?: number;
   barHeight?: number;
+  /** Uniões cujos filhos estão temporariamente recolhidos na visualização. */
+  collapsedUnions?: ReadonlySet<UnionId>;
 }
 
 export interface LayoutUnion {
@@ -92,6 +94,7 @@ interface ResolvedOptions {
   groupGap: number;
   rowGap: number;
   barHeight: number;
+  collapsedUnions?: ReadonlySet<UnionId>;
 }
 
 interface RawUnion {
@@ -203,7 +206,7 @@ const buildRawTree = (
         childIds: [...union.children],
         childNodes: [],
         hiddenChildCount: 0,
-        expanded: depth < depthLimit,
+        expanded: depth < depthLimit && !options.collapsedUnions?.has(union.id),
         barX: 0,
         barY: 0,
         rowY: null,

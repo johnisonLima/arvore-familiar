@@ -73,6 +73,19 @@ describe('buildTreeLayout — fixture sintética', () => {
     expect(layout.edges).toHaveLength(2);
   });
 
+  it('recolhe filhos por união sem removê-los do documento ou da contagem', () => {
+    const layout = buildTreeLayout(fixtureGraph, 'p-augusto', {
+      collapsedUnions: new Set(['u-augusto-lucia']),
+    });
+    const union = layout.byId.get('p-augusto')?.unions.find((item) => item.unionId === 'u-augusto-lucia');
+
+    expect(union?.childIds).toEqual(['p-beatriz', 'p-carlos']);
+    expect(union?.children).toEqual([]);
+    expect(union?.hiddenChildCount).toBe(2);
+    expect(layout.nodes.map((node) => node.personId)).not.toContain('p-beatriz');
+    expect(layout.hiddenPeopleCount).toBeGreaterThanOrEqual(2);
+  });
+
   it('mostra apenas a raiz com uma geração', () => {
     const layout = buildTreeLayout(fixtureGraph, 'p-augusto', { maxGenerations: 1 });
 

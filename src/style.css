@@ -497,6 +497,12 @@ select {
   border-top: 1px solid var(--line);
 }
 
+.hud__more { display: contents; }
+.hud__more-summary { display: none; }
+.hud__more-actions { display: contents; }
+.hud__more:not([open]) .hud__more-actions { display: none; }
+.hud__primary-actions { display: contents; }
+
 .hud__button,
 .hud__select {
   padding: 6px 11px;
@@ -653,6 +659,47 @@ select {
     font-size: 21px;
   }
 
+  .hud__eyebrow { display: none; }
+  .hud__meta, .hud__stats { display: none; }
+  .hud__actions {
+    margin-top: 8px;
+    padding-top: 8px;
+    justify-content: space-between;
+  }
+  .hud__more {
+    display: block;
+    position: relative;
+  }
+  .hud__more-summary {
+    display: block;
+    list-style: none;
+    padding: 6px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .hud__more-summary::-webkit-details-marker { display: none; }
+  .hud__more[open] .hud__more-actions {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    min-width: 185px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--hud);
+    box-shadow: 0 12px 32px var(--shadow);
+    backdrop-filter: blur(16px);
+  }
+  .hud__more-actions .hud__parents { flex-direction: column; align-items: stretch; }
+  .hud__more-actions .hud__label { margin-left: 0; justify-content: space-between; }
+  .hud__view-mode { margin: 0; }
+
   .tree-controls {
     top: auto;
     bottom: max(72px, calc(env(safe-area-inset-bottom, 0px) + 72px));
@@ -671,6 +718,18 @@ select {
     font-size: 11px;
   }
 }
+
+.is-relationship-view .union-bar {
+  border-width: 2px;
+  box-shadow: 0 4px 12px hsl(var(--hue) 60% 35% / 0.2);
+}
+
+.union-bar[data-toggle-union] { cursor: pointer; }
+.union-bar[data-toggle-union]:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.union-bar[data-toggle-union]::after { content: '⌄'; margin-left: auto; font-weight: 700; }
+.union-bar[data-toggle-union][aria-expanded='false']::after { content: '›'; }
+.union-bar.is-relationship-view .union-bar__names { display: flex; }
+.union-bar.is-relationship-view .union-bar__aside { display: flex; }
 
 @media (prefers-reduced-motion: reduce) {
   .tree-world,
